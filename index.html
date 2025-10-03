@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mundo-cleaver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        :root {
+            --primary-bg: rgb(4, 9, 19);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-primary: rgb(255, 255, 255);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+            --river-color: #4a90e2;
+            --ground-color: #2d5016;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cinzel', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 20%, #5a9fd4 20%, #5a9fd4 25%, var(--ground-color) 25%, var(--ground-color) 100%);
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3);
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: transparent;
+            cursor: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .latency-display {
+            position: absolute;
+            top: 120px;
+            left: 20px;
+            background: var(--card-bg);
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+            color: var(--text-primary);
+            z-index: 200;
+        }
+
+        .latency-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #latencyValue {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .latency-high {
+            color: #ff6b6b !important;
+        }
+
+        .latency-medium {
+            color: #ffa726 !important;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .health-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .health-hearts {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .heart {
+            width: 20px;
+            height: 20px;
+            background: #ff4444;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+        }
+
+        .heart.empty {
+            background: #444;
+        }
+
+
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .game-over-content {
+            text-align: center;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+        }
+
+        .game-over-content h1 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+
+        .game-over-content p {
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            margin-bottom: 30px;
+        }
+
+        .restart-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            display: block;
+            margin: 0 auto;
+        }
+
+        .restart-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+        }
+
+        .cooldown-display {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 120px;
+        }
+        
+        .cooldown-circle {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .cooldown-circle svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        
+        .cooldown-circle-bg {
+            fill: #000000;
+            stroke: #ff0000;
+            stroke-width: 4;
+            transition: stroke 0.2s ease;
+        }
+        
+        .cooldown-circle-progress {
+            fill: none;
+            stroke: #00ff00;
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+        
+        .cooldown-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        .cooldown-q {
+            font-family: 'Cinzel', serif;
+            font-size: 48px;
+            font-weight: 900;
+            color: #ff0000;
+            line-height: 1;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        .cooldown-time {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ff0000;
+            margin-top: 5px;
+        }
+
+        .kill-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .custom-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: radial-gradient(circle, #fff 30%, #ffff00 70%);
+            border: 3px solid #000;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 150;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        .main-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            cursor: default;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .main-menu-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 90%;
+            height: 90%;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+            object-fit: contain;
+            will-change: transform;
+        }
+
+        .main-menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 0;
+        }
+
+        .game-title {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 900;
+            color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 50px;
+            text-align: center;
+            white-space: nowrap;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .menu-btn {
+            font-family: 'Cinzel', serif;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 2px solid #8B0000;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #B22222;
+            transform: scale(1.05);
+        }
+
+        .room-interface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+
+        .room-content {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .room-code {
+            font-size: 2rem;
+            color: #4CAF50;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: var(--border-radius);
+            border: 2px solid #4CAF50;
+        }
+
+        .room-input {
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            margin: 20px 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .room-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .player-slots {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .player-slot {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius);
+            background: var(--card-bg);
+        }
+
+        .player-slot.occupied {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .player-slot.empty {
+            border-color: #666;
+            background: rgba(255, 255, 255, 0.05);
+            color: #999;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .ui-overlay, .instructions, .kill-counter {
+                font-size: 12px;
+                padding: 10px;
+            }
+            
+            .heart {
+                width: 16px;
+                height: 16px;
+            }
+
+            .game-title {
+                font-size: 2rem;
+                margin-bottom: 30px;
+                white-space: nowrap;
+            }
+
+            .menu-btn {
+                padding: 12px 30px;
+                font-size: 16px;
+                min-width: 180px;
+            }
+
+            .room-content {
+                padding: 20px;
+            }
+
+            .player-slots {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-menu" id="mainMenu">
+        <video class="main-menu-video" autoplay loop muted playsinline preload="auto" poster="video_poster.jpg">
+            <source src="dual_blade_hell_dynamic_5s.webm" type="video/webm">
+            <source src="dual_blade_hell_dynamic_5s.mp4" type="video/mp4">
+        </video>
+        <audio id="mainMenuAudio" autoplay loop muted preload="auto">
+            <source src="audio-editor-output.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="buttonClickSound" preload="auto">
+            <source src="button-click.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="qSkillSound" preload="auto">
+            <source src="q-skill-sound.wav" type="audio/wav">
+        </audio>
+        <div class="main-menu-overlay"></div>
+        <h1 class="game-title">Mundo-cleaver</h1>
+        <div class="menu-buttons">
+            <button class="menu-btn" onclick="playButtonClickSound(); stopMainMenuAudio(); showCreateRoom()">Create Room</button>
+            <button class="menu-btn" onclick="playButtonClickSound(); stopMainMenuAudio(); showJoinRoom()">Join Room</button>
+            <button class="menu-btn" onclick="playButtonClickSound(); stopMainMenuAudio(); startPractice()">Practise with AI</button>
+        </div>
+    </div>
+
+    <div class="room-interface" id="createRoomInterface">
+        <button class="back-btn" onclick="showMainMenu()">← Back</button>
+        <div class="room-content">
+            <h1 class="game-title">Mundo-cleaver</h1>
+            <h2>Create Room</h2>
+            <p>Share this room code with your friend:</p>
+            <div class="room-code" id="roomCode">Loading...</div>
+            <div class="player-slots">
+                <div class="player-slot occupied">
+                    <h3>Player 1 (You)</h3>
+                    <p>Ready to fight!</p>
+                </div>
+                <div class="player-slot empty" id="player2Slot">
+                    <h3>Player 2</h3>
+                    <p>Waiting for opponent...</p>
+                </div>
+            </div>
+            <button class="menu-btn" id="startGameBtn" onclick="startMultiplayerGame()" style="display: none;">Start Game</button>
+        </div>
+    </div>
+
+    <div class="room-interface" id="joinRoomInterface">
+        <button class="back-btn" onclick="showMainMenu()">← Back</button>
+        <div class="room-content">
+            <h1 class="game-title">Mundo-cleaver</h1>
+            <h2>Join Room</h2>
+            <p>Enter the room code to join a game:</p>
+            <input type="text" class="room-input" id="roomCodeInput" placeholder="Enter room code..." maxlength="6">
+            <br>
+            <button class="menu-btn" onclick="joinRoom()">Join Game</button>
+            <div id="joinStatus" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <div id="gameCanvas"></div>
+        
+        <div class="custom-cursor" id="customCursor"></div>
+        
+        <div class="ui-overlay">
+            <div class="health-bar">
+                <span>Player 1 Health:</span>
+                <div class="health-hearts" id="player1Health">
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                </div>
+            </div>
+            <div class="health-bar">
+                <span>Player 2 Health:</span>
+                <div class="health-hearts" id="player2Health">
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                    <div class="heart"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="latency-display">
+            <div class="latency-indicator">
+                <span>Ping: <span id="latencyValue">--</span>ms</span>
+            </div>
+        </div>
+
+        <div class="kill-counter">
+            <h3>Kill Count</h3>
+            <div>Player 1: <span id="player1Kills">0</span></div>
+            <div>Player 2: <span id="player2Kills">0</span></div>
+        </div>
+
+        <div class="instructions">
+            <div><strong>Controls:</strong></div>
+            <div>Right Click: Move character</div>
+            <div>Q Key: Throw knife</div>
+            <div>Goal: Hit opponent to win</div>
+        </div>
+
+        <div class="cooldown-display">
+            <div class="cooldown-circle">
+                <svg viewBox="0 0 120 120">
+                    <circle class="cooldown-circle-bg" cx="60" cy="60" r="56"/>
+                    <circle class="cooldown-circle-progress" id="cooldownCircle" cx="60" cy="60" r="56"/>
+                </svg>
+                <div class="cooldown-text">
+                    <div class="cooldown-q">Q</div>
+                    <div class="cooldown-time" id="cooldownTime"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="countdown-overlay" id="countdownOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 250;">
+            <div style="text-align: center; color: white;">
+                <h1 id="countdownNumber" style="font-size: 8rem; margin: 0; text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);">5</h1>
+                <p style="font-size: 2rem; margin: 10px 0 0 0;">Get Ready!</p>
+            </div>
+        </div>
+
+        <div class="game-over-overlay" id="gameOverOverlay">
+            <div class="game-over-content">
+                <h1 id="gameOverTitle">YOU ARE DEAD</h1>
+                <p id="gameOverMessage">Game Over</p>
+                <button class="restart-btn" onclick="restartGame()">Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let audioUnmuted = false;
+        
+        function stopMainMenuAudio() {
+            const audio = document.getElementById('mainMenuAudio');
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        }
+        
+        function playButtonClickSound() {
+            const audio = document.getElementById('buttonClickSound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(err => {
+                    console.log('Button click sound failed:', err);
+                });
+            }
+        }
+        
+        function tryUnmuteAudio() {
+            const audio = document.getElementById('mainMenuAudio');
+            if (audio && !audioUnmuted) {
+                audio.muted = false;
+                audio.volume = 0.5;
+                audio.play().then(() => {
+                    audioUnmuted = true;
+                    console.log('Audio unmuted and playing');
+                }).catch(err => {
+                    console.log('Audio unmute blocked, will retry on user interaction:', err);
+                });
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            // Try to unmute immediately (will likely fail due to browser policy)
+            tryUnmuteAudio();
+            
+            // Unmute on first user interaction
+            const unmuteOnInteraction = () => {
+                tryUnmuteAudio();
+                if (audioUnmuted) {
+                    document.removeEventListener('click', unmuteOnInteraction);
+                    document.removeEventListener('keydown', unmuteOnInteraction);
+                    document.removeEventListener('touchstart', unmuteOnInteraction);
+                    document.removeEventListener('mousemove', unmuteOnInteraction);
+                    document.removeEventListener('mouseenter', unmuteOnInteraction);
+                }
+            };
+            
+            document.addEventListener('click', unmuteOnInteraction);
+            document.addEventListener('keydown', unmuteOnInteraction);
+            document.addEventListener('touchstart', unmuteOnInteraction);
+            document.addEventListener('mousemove', unmuteOnInteraction);
+            document.addEventListener('mouseenter', unmuteOnInteraction);
+        });
+        
+        // Global shared rooms object for cross-tab communication
+        if (!window.globalRooms) {
+            window.globalRooms = {};
+        }
+        
+        // Enhanced multiplayer system using BroadcastChannel for cross-tab communication
+        // and localStorage for persistence across browser sessions
+        function io() {
+            const eventHandlers = {};
+            const socketId = 'socket_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            let broadcastChannel = null;
+            
+            // Initialize BroadcastChannel for same-origin communication
+            try {
+                broadcastChannel = new BroadcastChannel('mundo_cleaver_rooms');
+            } catch (e) {
+                console.warn('BroadcastChannel not supported, falling back to localStorage polling');
+            }
+            
+            return {
+                emit: function(event, data) {
+                    if (event === 'createRoom') {
+                        const roomData = { 
+                            host: socketId, 
+                            players: 1,
+                            created: Date.now(),
+                            lastActivity: Date.now()
+                        };
+                        
+                        window.globalRooms[data.roomCode] = roomData;
+                        localStorage.setItem('globalRooms', JSON.stringify(window.globalRooms));
+                        localStorage.setItem('room_' + data.roomCode, JSON.stringify(roomData));
+                        
+                        console.log('Room created:', data.roomCode);
+                        
+                        // Broadcast room creation
+                        if (broadcastChannel) {
+                            broadcastChannel.postMessage({
+                                type: 'roomCreated',
+                                roomCode: data.roomCode,
+                                roomData: roomData
+                            });
+                        }
+                    } else if (event === 'joinRoom') {
+                        // Check localStorage for room persistence across sessions
+                        const roomKey = 'room_' + data.roomCode;
+                        const roomData = localStorage.getItem(roomKey);
+                        
+                        if (roomData) {
+                            try {
+                                const room = JSON.parse(roomData);
+                                const now = Date.now();
+                                
+                                // Check if room is still active (within 10 minutes)
+                                if (now - room.lastActivity < 600000) {
+                                    if (room.players < 2) {
+                                        room.players = 2;
+                                        room.guest = socketId;
+                                        room.lastActivity = now;
+                                        
+                                        // Update room data
+                                        window.globalRooms[data.roomCode] = room;
+                                        localStorage.setItem('globalRooms', JSON.stringify(window.globalRooms));
+                                        localStorage.setItem(roomKey, JSON.stringify(room));
+                                        
+                                        // Notify host via BroadcastChannel and localStorage
+                                        const joinEvent = {
+                                            type: 'playerJoined',
+                                            roomCode: data.roomCode,
+                                            guestId: socketId,
+                                            timestamp: now
+                                        };
+                                        
+                                        if (broadcastChannel) {
+                                            broadcastChannel.postMessage(joinEvent);
+                                        }
+                                        localStorage.setItem('socketEvent_' + room.host, JSON.stringify(joinEvent));
+                                        
+                                        // Confirm join success
+                                        setTimeout(() => {
+                                            if (eventHandlers['joinSuccess']) {
+                                                eventHandlers['joinSuccess']({ roomCode: data.roomCode });
+                                            }
+                                        }, 100);
+                                    } else {
+                                        setTimeout(() => {
+                                            if (eventHandlers['roomFull']) {
+                                                eventHandlers['roomFull']({ roomCode: data.roomCode });
+                                            }
+                                        }, 100);
+                                    }
+                                } else {
+                                    // Room expired, clean up
+                                    localStorage.removeItem(roomKey);
+                                    delete window.globalRooms[data.roomCode];
+                                    localStorage.setItem('globalRooms', JSON.stringify(window.globalRooms));
+                                    
+                                    setTimeout(() => {
+                                        if (eventHandlers['joinError']) {
+                                            eventHandlers['joinError']({ roomCode: data.roomCode });
+                                        }
+                                    }, 100);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing room data:', e);
+                                setTimeout(() => {
+                                    if (eventHandlers['joinError']) {
+                                        eventHandlers['joinError']({ roomCode: data.roomCode });
+                                    }
+                                }, 100);
+                            }
+                        } else {
+                            setTimeout(() => {
+                                if (eventHandlers['joinError']) {
+                                    eventHandlers['joinError']({ roomCode: data.roomCode });
+                                }
+                            }, 100);
+                        }
+                    } else if (event === 'playerMove' || event === 'knifeThrow' || event === 'healthUpdate' || event === 'ping') {
+                        const roomKey = 'room_' + data.roomCode;
+                        const roomData = localStorage.getItem(roomKey);
+                        
+                        if (roomData) {
+                            try {
+                                const room = JSON.parse(roomData);
+                                const targetSocket = socketId === room.host ? room.guest : room.host;
+                                
+                                if (targetSocket) {
+                                    const gameEvent = {
+                                        type: event === 'playerMove' ? 'opponentMove' : 
+                                              event === 'knifeThrow' ? 'opponentKnifeThrow' : 
+                                              event === 'healthUpdate' ? 'opponentHealthUpdate' :
+                                              'pong',
+                                        data: data,
+                                        timestamp: Date.now()
+                                    };
+                                    
+                                    // Send via BroadcastChannel for real-time communication
+                                    if (broadcastChannel) {
+                                        broadcastChannel.postMessage({
+                                            ...gameEvent,
+                                            targetSocket: targetSocket
+                                        });
+                                    }
+                                    
+                                    // Fallback to localStorage
+                                    localStorage.setItem('socketEvent_' + targetSocket, JSON.stringify(gameEvent));
+                                }
+                            } catch (e) {
+                                console.error('Error handling game event:', e);
+                            }
+                        }
+                    }
+                },
+                
+                on: function(event, handler) {
+                    eventHandlers[event] = handler;
+                },
+                
+                off: function(event) {
+                    delete eventHandlers[event];
+                },
+                
+                trigger: function(event, data) {
+                    if (eventHandlers[event]) {
+                        eventHandlers[event](data);
+                    }
+                },
+                
+                disconnect: function() {
+                    // Clean up rooms where this socket was involved
+                    const rooms = window.globalRooms;
+                    for (const roomCode in rooms) {
+                        if (rooms[roomCode].host === socketId || rooms[roomCode].guest === socketId) {
+                            localStorage.removeItem('room_' + roomCode);
+                            delete rooms[roomCode];
+                        }
+                    }
+                    localStorage.setItem('globalRooms', JSON.stringify(rooms));
+                    
+                    if (broadcastChannel) {
+                        broadcastChannel.close();
+                    }
+                },
+                
+                // Enhanced listening with BroadcastChannel support
+                startListening: function() {
+                    // Listen for BroadcastChannel messages
+                    if (broadcastChannel) {
+                        broadcastChannel.onmessage = (event) => {
+                            const message = event.data;
+                            
+                            // Handle messages targeted at this socket
+                            if (message.targetSocket === socketId && eventHandlers[message.type]) {
+                                eventHandlers[message.type](message.data || { roomCode: message.roomCode });
+                            }
+                            // Handle general room events
+                            else if (message.type === 'playerJoined' && eventHandlers['playerJoined']) {
+                                // Check if this is for a room we're hosting
+                                const room = window.globalRooms[message.roomCode];
+                                if (room && room.host === socketId) {
+                                    eventHandlers['playerJoined']({ roomCode: message.roomCode });
+                                }
+                            }
+                        };
+                    }
+                    
+                    // Fallback localStorage polling for cross-session communication
+                    const checkForEvents = () => {
+                        const eventKey = 'socketEvent_' + socketId;
+                        const eventData = localStorage.getItem(eventKey);
+                        if (eventData) {
+                            try {
+                                const event = JSON.parse(eventData);
+                                if (eventHandlers[event.type]) {
+                                    eventHandlers[event.type](event.data || { roomCode: event.roomCode });
+                                }
+                                localStorage.removeItem(eventKey);
+                            } catch (e) {
+                                console.error('Error parsing socket event:', e);
+                            }
+                        }
+                    };
+                    
+                    // Check for events every 200ms (reduced frequency with BroadcastChannel)
+                    setInterval(checkForEvents, 200);
+                    
+                    return this;
+                }
+            };
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.6.9/umd/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="game3d.js?v=4"></script>
+</body>
+</html>
