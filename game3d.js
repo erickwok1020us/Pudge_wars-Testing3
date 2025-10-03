@@ -1,3 +1,5 @@
+const CDN_BASE_URL = 'https://pub-39b7799330674adc85f6866b080077c2.r2.dev';
+
 class MundoKnifeGame3D {
     constructor(mode = 'practice', isMultiplayer = false, isHostPlayer = false) {
         this.gameMode = mode;
@@ -29,10 +31,10 @@ class MundoKnifeGame3D {
         const loader = new THREE.FBXLoader();
         
         const animationFiles = {
-            idle: 'Animation_Idle_frame_rate_60.fbx',
-            run: 'Animation_RunFast_frame_rate_60.fbx',
-            skill: 'Animation_Skill_03_frame_rate_60.fbx',
-            death: 'Animation_Dead_frame_rate_60.fbx'
+            idle: `${CDN_BASE_URL}/Animation_Idle_frame_rate_60.fbx`,
+            run: `${CDN_BASE_URL}/Animation_RunFast_frame_rate_60.fbx`,
+            skill: `${CDN_BASE_URL}/Animation_Skill_03_frame_rate_60.fbx`,
+            death: `${CDN_BASE_URL}/Animation_Dead_frame_rate_60.fbx`
         };
         
         this.characterModel = null;
@@ -107,7 +109,7 @@ class MundoKnifeGame3D {
     setupTerrain() {
         const loader = new THREE.GLTFLoader();
         
-        loader.load('new_map.glb', (gltf) => {
+        loader.load(`${CDN_BASE_URL}/new_map.glb`, (gltf) => {
             const mapModel = gltf.scene;
             
             const box = new THREE.Box3().setFromObject(mapModel);
