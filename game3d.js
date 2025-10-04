@@ -245,10 +245,6 @@ class MundoKnifeGame3D {
         const player1Facing = 1;
         const player2Facing = -1;
         
-        console.log('🎮 Spawn Positions Generated:');
-        console.log('  Player 1:', player1Pos.x.toFixed(1), ',', player1Pos.z.toFixed(1));
-        console.log('  Player 2:', player2Pos.x.toFixed(1), ',', player2Pos.z.toFixed(1));
-        
         return {
             player1: { x: player1Pos.x, z: player1Pos.z, facing: player1Facing },
             player2: { x: player2Pos.x, z: player2Pos.z, facing: player2Facing }
@@ -310,7 +306,7 @@ class MundoKnifeGame3D {
             targetZ: null,
             moveSpeed: 0.39,
             lastKnifeTime: 0,
-            knifeCooldown: this.isMultiplayer ? 2200 : 1620,
+            knifeCooldown: this.isMultiplayer ? 2200 : 60000,
             mesh: null,
             aiStartDelay: 0,
             aiCanAttack: !this.isMultiplayer,
@@ -356,7 +352,8 @@ class MundoKnifeGame3D {
         player.mesh.scale.set(scaleValue, scaleValue, scaleValue);
         
         const groundY = this.groundSurfaceY || 0;
-        player.mesh.position.set(player.x, groundY + this.characterSize, player.z);
+        player.mesh.position.set(player.x, groundY, player.z);
+        player.y = groundY;
         player.mesh.castShadow = false;
         
         player.mesh.traverse((child) => {
@@ -475,14 +472,17 @@ class MundoKnifeGame3D {
 
     setupCamera() {
         if (this.player1) {
+            const groundY = this.groundSurfaceY || 0;
+            const characterCenterY = groundY + (this.characterSize / 2);
+            
             this.camera.position.set(
                 this.player1.x,
-                this.player1.y + 90,
+                characterCenterY + 90,
                 this.player1.z + 75
             );
-            this.camera.lookAt(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
+            this.camera.lookAt(this.player1.x, characterCenterY, this.player1.z);
             
-            this.cameraTarget = new THREE.Vector3(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
+            this.cameraTarget = new THREE.Vector3(this.player1.x, characterCenterY, this.player1.z);
             this.cameraOffset = new THREE.Vector3(0, 90, 75);
         } else {
             this.camera.position.set(0, 90, 75);
@@ -497,15 +497,16 @@ class MundoKnifeGame3D {
 
     updateCamera() {
         if (this.player1) {
-            const playerPos = new THREE.Vector3(this.player1.x, 0, this.player1.z);
+            const groundY = this.groundSurfaceY || 0;
+            const characterCenterY = groundY + (this.characterSize / 2);
             
             this.camera.position.set(
                 this.player1.x,
-                this.player1.y + 90,
+                characterCenterY + 90,
                 this.player1.z + 75
             );
             
-            this.camera.lookAt(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
+            this.camera.lookAt(this.player1.x, characterCenterY, this.player1.z);
         }
     }
 
@@ -590,7 +591,7 @@ class MundoKnifeGame3D {
             const qSkillSound = document.getElementById('qSkillSound');
             if (qSkillSound) {
                 qSkillSound.currentTime = 0;
-                qSkillSound.play().catch(e => console.log('Audio play failed:', e));
+                qSkillSound.play().catch(e => {});
             }
             
             if (this.mouseWorldX === 0 && this.mouseWorldZ === 0) {
@@ -602,11 +603,14 @@ class MundoKnifeGame3D {
             }
             
             this.player1.isThrowingKnife = true;
+            this.player1.isMoving = false;
+            this.player1.targetX = null;
+            this.player1.targetZ = null;
             this.player1.lastKnifeTime = now;
             
             setTimeout(() => {
                 this.player1.isThrowingKnife = false;
-            }, 1000);
+            }, 2500);
             
             if (this.isMultiplayer && socket) {
                 const targetX = (this.mouseWorldX === 0 && this.mouseWorldZ === 0) ? 
@@ -631,17 +635,20 @@ class MundoKnifeGame3D {
             const qSkillSound = document.getElementById('qSkillSound');
             if (qSkillSound) {
                 qSkillSound.currentTime = 0;
-                qSkillSound.play().catch(e => console.log('Audio play failed:', e));
+                qSkillSound.play().catch(e => {});
             }
             
             this.createKnife3D(this.player2, this.player1);
             
             this.player2.isThrowingKnife = true;
+            this.player2.isMoving = false;
+            this.player2.targetX = null;
+            this.player2.targetZ = null;
             this.player2.lastKnifeTime = now;
             
             setTimeout(() => {
                 this.player2.isThrowingKnife = false;
-            }, 1000);
+            }, 2500);
         }
     }
 
@@ -748,7 +755,7 @@ class MundoKnifeGame3D {
         this.updatePlayerMovement(this.player1, dt);
         this.updatePlayerMovement(this.player2, dt);
         
-        if (!this.isMultiplayer && this.player2.health > 0 && this.gameState.isRunning && Math.random() < 0.06) {
+        if (!this.isMultiplayer && this.player2.health > 0 && this.gameState.isRunning && !this.player2.isThrowingKnife && Math.random() < 0.06) {
             const potentialX = this.player2.x + (Math.random() - 0.5) * 25;
             const potentialZ = this.player2.z + (Math.random() - 0.5) * 25;
             
@@ -803,7 +810,7 @@ class MundoKnifeGame3D {
             
             if (player.mesh) {
                 const groundY = this.groundSurfaceY || 0;
-                player.mesh.position.set(player.x, groundY + this.characterSize, player.z);
+                player.mesh.position.set(player.x, groundY, player.z);
             }
         }
     }
@@ -879,17 +886,11 @@ class MundoKnifeGame3D {
                 Math.pow(knifePos.z - targetPos.z, 2)
             );
             
-            console.log(`Knife at (${knifePos.x.toFixed(1)}, ${knifePos.z.toFixed(1)}) vs Player at (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)}) - Distance: ${distance.toFixed(1)}, Required: ${(this.characterSize * 3).toFixed(1)}`);
-            
             if (distance < this.characterSize * 3) {
-                console.log('Knife hit detected! Creating blood effect at:', targetPos.x, targetPos.y, targetPos.z);
-                console.log('Target health before hit:', target.health);
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 target.health--;
-                console.log('Target health after hit:', target.health);
                 this.updateHealthDisplay();
-                console.log('Health display updated');
                 
                 this.disposeKnife(knife);
                 this.knives.splice(knifeIndex, 1);
@@ -910,7 +911,6 @@ class MundoKnifeGame3D {
     }
 
     createBloodEffect(x, y, z) {
-        console.log('Creating blood effect with', 30, 'particles at position:', x, y, z);
         const particleCount = 30;
         
         for (let i = 0; i < particleCount; i++) {
@@ -987,8 +987,6 @@ class MundoKnifeGame3D {
         const player1Hearts = document.getElementById('player1Health').children;
         const player2Hearts = document.getElementById('player2Health').children;
         
-        console.log('Updating health display - Player1:', this.player1.health, 'Player2:', this.player2.health);
-        
         for (let i = 0; i < 5; i++) {
             player1Hearts[i].classList.toggle('empty', i >= this.player1.health);
             player2Hearts[i].classList.toggle('empty', i >= this.player2.health);
@@ -1021,9 +1019,6 @@ class MundoKnifeGame3D {
             ctx.fillText(this.player2.health.toString(), 260, 120);
             this.player2.healthSprite.material.map.needsUpdate = true;
         }
-        
-        console.log('Health display updated - Player2 hearts with empty class:', 
-            Array.from(player2Hearts).map(heart => heart.classList.contains('empty')));
     }
 
     updateKillCountDisplay() {
