@@ -184,16 +184,10 @@ class MundoKnifeGame3D {
             const scaledBox = new THREE.Box3().setFromObject(mapModel);
             const scaledSize = new THREE.Vector3();
             scaledBox.getSize(scaledSize);
-            console.log('🗺️ Map Bounding Box after scaling:');
-            console.log('  Min X:', scaledBox.min.x.toFixed(2), 'Min Y:', scaledBox.min.y.toFixed(2), 'Min Z:', scaledBox.min.z.toFixed(2));
-            console.log('  Max X:', scaledBox.max.x.toFixed(2), 'Max Y:', scaledBox.max.y.toFixed(2), 'Max Z:', scaledBox.max.z.toFixed(2));
-            console.log('  Size:', scaledSize);
-            console.log('  Width (X):', scaledSize.x, 'Depth (Z):', scaledSize.z, 'Height (Y):', scaledSize.y);
             
             this.groundSurfaceY = scaledBox.max.y;
-            console.log('🎯 Ground Surface Y Position:', this.groundSurfaceY.toFixed(2));
             
-            const invisibleGroundGeometry = new THREE.PlaneGeometry(200, 150);
+            const invisibleGroundGeometry = new THREE.PlaneGeometry(400, 400);
             const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0x000000, 
                 transparent: true, 
@@ -555,10 +549,12 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
-        this.mouseVector.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouseVector.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
-        this.raycaster.setFromCamera(this.mouseVector, this.camera);
+        this.mouse.x = mouseX;
+        this.mouse.y = mouseY;
+        this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
         
         if (intersects.length > 0) {
