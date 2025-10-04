@@ -279,8 +279,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player1.x,
             y: 0,
             z: spawnPositions.player1.z,
-            health: 50,
-            maxHealth: 50,
+            health: 5,
+            maxHealth: 5,
             color: 0xff6b6b,
             facing: spawnPositions.player1.facing,
             isMoving: false,
@@ -301,8 +301,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player2.x,
             y: 0,
             z: spawnPositions.player2.z,
-            health: 50,
-            maxHealth: 50,
+            health: 5,
+            maxHealth: 5,
             color: 0x4ecdc4,
             facing: spawnPositions.player2.facing,
             isMoving: false,
@@ -416,14 +416,19 @@ class MundoKnifeGame3D {
         
         context.fillStyle = '#ffffff';
         context.font = 'bold 86px Arial';
-        context.fillText(player.health.toString(), 220, 120);
+        context.fillText(player.health.toString(), 260, 120);
         
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const spriteMaterial = new THREE.SpriteMaterial({ 
+            map: texture,
+            depthTest: false,
+            depthWrite: false
+        });
         const sprite = new THREE.Sprite(spriteMaterial);
         
-        sprite.scale.set(24, 12, 1);
-        sprite.position.set(0, 20, 0);
+        sprite.scale.set(300, 150, 1);
+        sprite.position.set(0, 180, 0);
+        sprite.renderOrder = 999;
         
         return sprite;
     }
@@ -475,9 +480,9 @@ class MundoKnifeGame3D {
                 this.player1.y + 90,
                 this.player1.z + 75
             );
-            this.camera.lookAt(this.player1.x, this.player1.y, this.player1.z);
+            this.camera.lookAt(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
             
-            this.cameraTarget = new THREE.Vector3(this.player1.x, this.player1.y, this.player1.z);
+            this.cameraTarget = new THREE.Vector3(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
             this.cameraOffset = new THREE.Vector3(0, 90, 75);
         } else {
             this.camera.position.set(0, 90, 75);
@@ -500,7 +505,7 @@ class MundoKnifeGame3D {
                 this.player1.z + 75
             );
             
-            this.camera.lookAt(this.player1.x, this.player1.y, this.player1.z);
+            this.camera.lookAt(this.player1.x, this.player1.y + this.characterSize / 2, this.player1.z);
         }
     }
 
@@ -782,6 +787,9 @@ class MundoKnifeGame3D {
                     player.x = newX;
                     player.z = newZ;
                     player.facing = dx > 0 ? 1 : -1;
+                    
+                    const angle = Math.atan2(dz, dx);
+                    player.mesh.rotation.y = -angle + Math.PI / 2;
                 } else {
                     player.isMoving = false;
                     player.targetX = null;
@@ -996,7 +1004,7 @@ class MundoKnifeGame3D {
             ctx.fillText('❤️', 160, 120);
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 86px Arial';
-            ctx.fillText(this.player1.health.toString(), 220, 120);
+            ctx.fillText(this.player1.health.toString(), 260, 120);
             this.player1.healthSprite.material.map.needsUpdate = true;
         }
         
@@ -1010,7 +1018,7 @@ class MundoKnifeGame3D {
             ctx.fillText('❤️', 160, 120);
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 86px Arial';
-            ctx.fillText(this.player2.health.toString(), 220, 120);
+            ctx.fillText(this.player2.health.toString(), 260, 120);
             this.player2.healthSprite.material.map.needsUpdate = true;
         }
         
