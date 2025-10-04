@@ -10,6 +10,14 @@ class MundoKnifeGame3D {
         this.fixedDt = this.getPlatformAdjustedTimestep();
         this.currentState = null;
         this.previousState = null;
+        
+        this.loadingProgress = {
+            total: 5,
+            loaded: 0,
+            currentAsset: ''
+        };
+        
+        this.showLoadingOverlay();
         this.setupThreeJS();
         
         this.loadCharacterAnimations().then(() => {
@@ -17,14 +25,45 @@ class MundoKnifeGame3D {
             this.setupCamera();
             this.setupEventListeners();
             this.setupMultiplayerEvents();
+            this.hideLoadingOverlay();
             this.gameLoop();
         }).catch(error => {
             console.error('Failed to load character animations:', error);
+            this.hideLoadingOverlay();
         });
     }
 
     getPlatformAdjustedTimestep() {
         return 0.008;
+    }
+
+    showLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+    }
+
+    hideLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    updateLoadingProgress(assetName) {
+        this.loadingProgress.loaded++;
+        this.loadingProgress.currentAsset = assetName;
+        
+        const percentage = Math.round((this.loadingProgress.loaded / this.loadingProgress.total) * 100);
+        
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingText = document.getElementById('loadingText');
+        const loadingAsset = document.getElementById('loadingAsset');
+        
+        if (loadingBar) loadingBar.style.width = percentage + '%';
+        if (loadingText) loadingText.textContent = `Loading assets... ${percentage}%`;
+        if (loadingAsset) loadingAsset.textContent = assetName;
     }
 
     async loadCharacterAnimations() {
@@ -44,6 +83,7 @@ class MundoKnifeGame3D {
             loader.load(animationFiles.idle, (fbx) => {
                 this.characterModel = fbx;
                 this.animations.idle = fbx.animations[0];
+                this.updateLoadingProgress('Idle Animation');
                 
                 let loaded = 1;
                 const total = Object.keys(animationFiles).length;
@@ -54,6 +94,13 @@ class MundoKnifeGame3D {
                     loader.load(file, (animFbx) => {
                         this.animations[key] = animFbx.animations[0];
                         loaded++;
+                        
+                        const assetNames = {
+                            'run': 'Running Animation',
+                            'skill': 'Skill Animation',
+                            'death': 'Death Animation'
+                        };
+                        this.updateLoadingProgress(assetNames[key] || `${key} Animation`);
                         
                         if (loaded === total) {
                             resolve();
@@ -107,6 +154,7 @@ class MundoKnifeGame3D {
         const loader = new THREE.GLTFLoader();
         
         loader.load(`${CDN_BASE_URL}/new_map.glb`, (gltf) => {
+            this.updateLoadingProgress('Game Map');
             const mapModel = gltf.scene;
             
             const box = new THREE.Box3().setFromObject(mapModel);
