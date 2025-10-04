@@ -89,21 +89,18 @@ class MundoKnifeGame3D {
     }
 
     setupLighting() {
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
         this.scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
         directionalLight.position.set(50, 100, 50);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
-        directionalLight.shadow.camera.left = -100;
-        directionalLight.shadow.camera.right = 100;
-        directionalLight.shadow.camera.top = 100;
-        directionalLight.shadow.camera.bottom = -100;
+        directionalLight.castShadow = false;
         this.scene.add(directionalLight);
+        
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight2.position.set(-50, 80, -50);
+        directionalLight2.castShadow = false;
+        this.scene.add(directionalLight2);
     }
 
     setupTerrain() {
@@ -124,12 +121,11 @@ class MundoKnifeGame3D {
             mapModel.rotation.y = Math.PI / 2;
             mapModel.position.y = 0;
             
-            let hasRiver = false;
             mapModel.traverse((child) => {
                 if (child.isMesh) {
-                    if (child.name.toLowerCase().includes('river') || 
-                        child.name.toLowerCase().includes('water')) {
-                        hasRiver = true;
+                    if (child.name === 'Mesh_0' && child.material) {
+                        child.material.color.set(0x4db8ff);
+                        child.material.needsUpdate = true;
                     }
                 }
             });
@@ -137,17 +133,17 @@ class MundoKnifeGame3D {
             this.scene.add(mapModel);
             this.ground = mapModel;
             
-            if (!hasRiver) {
-                const riverGeometry = new THREE.BoxGeometry(20, 2, 150);
-                const riverMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x1e6091,
-                    transparent: false,
-                    opacity: 1.0
-                });
-                this.river = new THREE.Mesh(riverGeometry, riverMaterial);
-                this.river.position.set(0, -0.5, 0);
-                this.scene.add(this.river);
-            }
+            const scaledBox = new THREE.Box3().setFromObject(mapModel);
+            const scaledSize = new THREE.Vector3();
+            scaledBox.getSize(scaledSize);
+            console.log('🗺️ Map Bounding Box after scaling:');
+            console.log('  Min X:', scaledBox.min.x.toFixed(2), 'Min Y:', scaledBox.min.y.toFixed(2), 'Min Z:', scaledBox.min.z.toFixed(2));
+            console.log('  Max X:', scaledBox.max.x.toFixed(2), 'Max Y:', scaledBox.max.y.toFixed(2), 'Max Z:', scaledBox.max.z.toFixed(2));
+            console.log('  Size:', scaledSize);
+            console.log('  Width (X):', scaledSize.x, 'Depth (Z):', scaledSize.z, 'Height (Y):', scaledSize.y);
+            
+            this.groundSurfaceY = scaledBox.max.y;
+            console.log('🎯 Ground Surface Y Position:', this.groundSurfaceY.toFixed(2));
             
             const invisibleGroundGeometry = new THREE.PlaneGeometry(200, 150);
             const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
@@ -174,16 +170,6 @@ class MundoKnifeGame3D {
         this.ground.receiveShadow = true;
         this.scene.add(this.ground);
         
-        const riverGeometry = new THREE.BoxGeometry(20, 2, 150);
-        const riverMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0x1e6091,
-            transparent: false,
-            opacity: 1.0
-        });
-        this.river = new THREE.Mesh(riverGeometry, riverMaterial);
-        this.river.position.set(0, -0.5, 0);
-        this.scene.add(this.river);
-        
         const invisibleGroundGeometry = new THREE.PlaneGeometry(200, 150);
         const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x000000, 
@@ -198,10 +184,11 @@ class MundoKnifeGame3D {
 
     generateRandomSpawnPositions() {
         const riverZone = { xMin: -10, xMax: 10 };
-        const zBounds = { zMin: -65, zMax: 65 };
         
-        const player1Bounds = { xMin: -90, xMax: -15 };
-        const player2Bounds = { xMin: 15, xMax: 90 };
+        const zBounds = { zMin: -40, zMax: 40 };
+        
+        const player1Bounds = { xMin: -50, xMax: -20 };
+        const player2Bounds = { xMin: 20, xMax: 50 };
         
         const player1Pos = {
             x: Math.random() * (player1Bounds.xMax - player1Bounds.xMin) + player1Bounds.xMin,
@@ -215,6 +202,10 @@ class MundoKnifeGame3D {
         
         const player1Facing = 1;
         const player2Facing = -1;
+        
+        console.log('🎮 Spawn Positions Generated:');
+        console.log('  Player 1:', player1Pos.x.toFixed(1), ',', player1Pos.z.toFixed(1));
+        console.log('  Player 2:', player2Pos.x.toFixed(1), ',', player2Pos.z.toFixed(1));
         
         return {
             player1: { x: player1Pos.x, z: player1Pos.z, facing: player1Facing },
@@ -238,7 +229,7 @@ class MundoKnifeGame3D {
 
         this.particles = [];
 
-        this.characterSize = 3;
+        this.characterSize = 10.5;
         
         const spawnPositions = this.generateRandomSpawnPositions();
         
@@ -246,8 +237,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player1.x,
             y: 0,
             z: spawnPositions.player1.z,
-            health: 5,
-            maxHealth: 5,
+            health: 50,
+            maxHealth: 50,
             color: 0xff6b6b,
             facing: spawnPositions.player1.facing,
             isMoving: false,
@@ -268,8 +259,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player2.x,
             y: 0,
             z: spawnPositions.player2.z,
-            health: 5,
-            maxHealth: 5,
+            health: 50,
+            maxHealth: 50,
             color: 0x4ecdc4,
             facing: spawnPositions.player2.facing,
             isMoving: false,
@@ -317,29 +308,29 @@ class MundoKnifeGame3D {
     }
 
     createPlayer3D(player) {
-        player.mesh = this.characterModel.clone();
+        player.mesh = THREE.SkeletonUtils.clone(this.characterModel);
         
-        const scaleValue = 0.000000001575;
+        const scaleValue = 0.0805;
         player.mesh.scale.set(scaleValue, scaleValue, scaleValue);
         
-        player.mesh.position.set(player.x, player.y, player.z);
+        const groundY = this.groundSurfaceY || 0;
+        player.mesh.position.set(player.x, groundY + this.characterSize, player.z);
         player.mesh.castShadow = false;
         
         player.mesh.traverse((child) => {
-            if (child.isMesh && child.isSkinnedMesh) {
-                const originalMaterial = child.material;
-                
-                child.material = new THREE.MeshStandardMaterial({
-                    map: originalMaterial.map,
-                    color: 0xffffff,
-                    metalness: 0.3,
-                    roughness: 0.7,
-                    skinning: true
-                });
-                
-                if (originalMaterial.emissive && originalMaterial.emissiveIntensity) {
-                    child.material.emissive = originalMaterial.emissive.clone();
-                    child.material.emissiveIntensity = originalMaterial.emissiveIntensity * 0.5;
+            if (child.isMesh) {
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            mat.roughness = 0.9;
+                            mat.metalness = 0.1;
+                            mat.needsUpdate = true;
+                        });
+                    } else {
+                        child.material.roughness = 0.9;
+                        child.material.metalness = 0.1;
+                        child.material.needsUpdate = true;
+                    }
                 }
             }
         });
@@ -712,8 +703,8 @@ class MundoKnifeGame3D {
             const potentialX = this.player2.x + (Math.random() - 0.5) * 25;
             const potentialZ = this.player2.z + (Math.random() - 0.5) * 25;
             
-            this.player2.targetX = Math.max(15, Math.min(95, potentialX));
-            this.player2.targetZ = Math.max(-70, Math.min(70, potentialZ));
+            this.player2.targetX = Math.max(25, Math.min(60, potentialX));
+            this.player2.targetZ = Math.max(-60, Math.min(60, potentialZ));
             this.player2.isMoving = true;
         }
     }
@@ -725,10 +716,33 @@ class MundoKnifeGame3D {
             const distance = Math.sqrt(dx * dx + dz * dz);
             
             if (distance > 1) {
-                player.x += (dx / distance) * player.moveSpeed;
-                player.z += (dz / distance) * player.moveSpeed;
+                const newX = player.x + (dx / distance) * player.moveSpeed;
+                const newZ = player.z + (dz / distance) * player.moveSpeed;
                 
-                player.facing = dx > 0 ? 1 : -1;
+                const riverZone = { xMin: -10, xMax: 10 };
+                const mapBounds = { xMin: -70, xMax: 70, zMin: -70, zMax: 70 };
+                let canMove = true;
+                
+                if (player.x < riverZone.xMin && newX > riverZone.xMin) {
+                    canMove = false;
+                } else if (player.x > riverZone.xMax && newX < riverZone.xMax) {
+                    canMove = false;
+                }
+                
+                if (newX < mapBounds.xMin || newX > mapBounds.xMax || 
+                    newZ < mapBounds.zMin || newZ > mapBounds.zMax) {
+                    canMove = false;
+                }
+                
+                if (canMove) {
+                    player.x = newX;
+                    player.z = newZ;
+                    player.facing = dx > 0 ? 1 : -1;
+                } else {
+                    player.isMoving = false;
+                    player.targetX = null;
+                    player.targetZ = null;
+                }
             } else {
                 player.isMoving = false;
                 player.targetX = null;
@@ -736,7 +750,8 @@ class MundoKnifeGame3D {
             }
             
             if (player.mesh) {
-                player.mesh.position.set(player.x, player.y + this.characterSize, player.z);
+                const groundY = this.groundSurfaceY || 0;
+                player.mesh.position.set(player.x, groundY + this.characterSize, player.z);
             }
         }
     }
