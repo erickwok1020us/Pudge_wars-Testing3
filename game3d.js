@@ -25,7 +25,6 @@ class MundoKnifeGame3D {
             this.setupCamera();
             this.setupEventListeners();
             this.setupMultiplayerEvents();
-            this.hideLoadingOverlay();
             this.gameLoop();
         }).catch(error => {
             console.error('Failed to load character animations:', error);
@@ -64,6 +63,12 @@ class MundoKnifeGame3D {
         if (loadingBar) loadingBar.style.width = percentage + '%';
         if (loadingText) loadingText.textContent = `Loading assets... ${percentage}%`;
         if (loadingAsset) loadingAsset.textContent = assetName;
+        
+        if (percentage >= 100) {
+            setTimeout(() => {
+                this.hideLoadingOverlay();
+            }, 500);
+        }
     }
 
     async loadCharacterAnimations() {
@@ -330,6 +335,9 @@ class MundoKnifeGame3D {
             x: 0,
             y: 0
         };
+        
+        this.lastMouseClientX = undefined;
+        this.lastMouseClientY = undefined;
 
         this.raycaster = new THREE.Raycaster();
         this.mouseVector = new THREE.Vector2();
@@ -535,6 +543,9 @@ class MundoKnifeGame3D {
         });
 
         document.addEventListener('mousemove', (e) => {
+            this.lastMouseClientX = e.clientX;
+            this.lastMouseClientY = e.clientY;
+            
             this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             
@@ -592,21 +603,30 @@ class MundoKnifeGame3D {
                 qSkillSound.play().catch(e => {});
             }
             
-            this.raycaster.setFromCamera(this.mouse, this.camera);
-            const intersects = this.raycaster.intersectObject(this.invisibleGround);
+            let targetX, targetZ;
             
-            if (intersects.length > 0) {
-                this.mouseWorldX = intersects[0].point.x;
-                this.mouseWorldZ = intersects[0].point.z;
-            }
-            
-            if (this.mouseWorldX === 0 && this.mouseWorldZ === 0) {
-                const defaultTargetX = this.player1.x + (this.player1.facing * 20);
-                const defaultTargetZ = this.player1.z;
-                this.createKnife3DTowards(this.player1, defaultTargetX, defaultTargetZ);
+            if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
+                const tempMouse = {
+                    x: (this.lastMouseClientX / window.innerWidth) * 2 - 1,
+                    y: -(this.lastMouseClientY / window.innerHeight) * 2 + 1
+                };
+                
+                this.raycaster.setFromCamera(tempMouse, this.camera);
+                const intersects = this.raycaster.intersectObject(this.invisibleGround);
+                
+                if (intersects.length > 0) {
+                    targetX = intersects[0].point.x;
+                    targetZ = intersects[0].point.z;
+                } else {
+                    targetX = this.player1.x + (this.player1.facing * 20);
+                    targetZ = this.player1.z;
+                }
             } else {
-                this.createKnife3DTowards(this.player1, this.mouseWorldX, this.mouseWorldZ);
+                targetX = this.player1.x + (this.player1.facing * 20);
+                targetZ = this.player1.z;
             }
+            
+            this.createKnife3DTowards(this.player1, targetX, targetZ);
             
             this.player1.isThrowingKnife = true;
             this.player1.isMoving = false;
@@ -619,11 +639,6 @@ class MundoKnifeGame3D {
             }, 2500);
             
             if (this.isMultiplayer && socket) {
-                const targetX = (this.mouseWorldX === 0 && this.mouseWorldZ === 0) ? 
-                    this.player1.x + (this.player1.facing * 20) : this.mouseWorldX;
-                const targetZ = (this.mouseWorldX === 0 && this.mouseWorldZ === 0) ? 
-                    this.player1.z : this.mouseWorldZ;
-                    
                 socket.emit('knifeThrow', {
                     roomCode: roomCode,
                     targetX: targetX,
