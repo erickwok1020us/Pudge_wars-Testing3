@@ -311,7 +311,7 @@ class MundoKnifeGame3D {
             targetZ: null,
             moveSpeed: 0.39,
             lastKnifeTime: 0,
-            knifeCooldown: this.isMultiplayer ? 2200 : 300000,
+            knifeCooldown: 2200,
             mesh: null,
             aiStartDelay: 0,
             aiCanAttack: !this.isMultiplayer,
@@ -564,6 +564,10 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
+        if (this.gameState.countdownActive) {
+            return;
+        }
+        
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
@@ -603,7 +607,7 @@ class MundoKnifeGame3D {
                 qSkillSound.play().catch(e => {});
             }
             
-            let targetX, targetZ;
+            let targetX, targetZ, rayDirection;
             
             if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
                 const tempMouse = {
@@ -612,6 +616,9 @@ class MundoKnifeGame3D {
                 };
                 
                 this.raycaster.setFromCamera(tempMouse, this.camera);
+                
+                rayDirection = this.raycaster.ray.direction.clone().normalize();
+                
                 const intersects = this.raycaster.intersectObject(this.invisibleGround);
                 
                 if (intersects.length > 0) {
@@ -620,13 +627,15 @@ class MundoKnifeGame3D {
                 } else {
                     targetX = this.player1.x + (this.player1.facing * 20);
                     targetZ = this.player1.z;
+                    rayDirection = null;
                 }
             } else {
                 targetX = this.player1.x + (this.player1.facing * 20);
                 targetZ = this.player1.z;
+                rayDirection = null;
             }
             
-            this.createKnife3DTowards(this.player1, targetX, targetZ);
+            this.createKnife3DTowards(this.player1, targetX, targetZ, rayDirection);
             
             this.player1.isThrowingKnife = true;
             this.player1.isMoving = false;
@@ -659,7 +668,33 @@ class MundoKnifeGame3D {
                 qSkillSound.play().catch(e => {});
             }
             
-            this.createKnife3D(this.player2, this.player1);
+            let targetX = this.player1.x;
+            let targetZ = this.player1.z;
+            
+            if (this.player1.isMoving && this.player1.targetX !== null && this.player1.targetZ !== null) {
+                const dx = this.player1.targetX - this.player1.x;
+                const dz = this.player1.targetZ - this.player1.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                
+                if (distance > 0.1) {
+                    const predictionTime = 0.5;
+                    const predictedDistance = this.player1.moveSpeed * 60 * predictionTime;
+                    const dirX = dx / distance;
+                    const dirZ = dz / distance;
+                    
+                    targetX = this.player1.x + dirX * Math.min(predictedDistance, distance);
+                    targetZ = this.player1.z + dirZ * Math.min(predictedDistance, distance);
+                }
+            }
+            
+            const accuracy = 0.9;
+            const randomOffsetX = (Math.random() - 0.5) * (1 - accuracy) * 20;
+            const randomOffsetZ = (Math.random() - 0.5) * (1 - accuracy) * 20;
+            
+            targetX += randomOffsetX;
+            targetZ += randomOffsetZ;
+            
+            this.createKnife3DTowards(this.player2, targetX, targetZ, null);
             
             this.player2.isThrowingKnife = true;
             this.player2.isMoving = false;
@@ -673,7 +708,7 @@ class MundoKnifeGame3D {
         }
     }
 
-    createKnife3DTowards(fromPlayer, targetX, targetZ) {
+    createKnife3DTowards(fromPlayer, targetX, targetZ, rayDirection = null) {
         const knifeGroup = new THREE.Group();
         
         const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
@@ -698,18 +733,30 @@ class MundoKnifeGame3D {
         knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
         knifeGroup.castShadow = true;
         
-        const direction = new THREE.Vector3(
-            targetX - fromPlayer.x,
-            0,
-            targetZ - fromPlayer.z
-        ).normalize();
+        let direction;
+        if (rayDirection) {
+            direction = rayDirection.clone();
+        } else {
+            direction = new THREE.Vector3(
+                targetX - fromPlayer.x,
+                0,
+                targetZ - fromPlayer.z
+            ).normalize();
+        }
         
-        knifeGroup.lookAt(new THREE.Vector3(targetX, fromPlayer.y + this.characterSize, targetZ));
+        const knifeSpeed = 4.5864;
+        
+        knifeGroup.lookAt(
+            knifeGroup.position.x + direction.x,
+            knifeGroup.position.y + direction.y,
+            knifeGroup.position.z + direction.z
+        );
         
         const knifeData = {
             mesh: knifeGroup,
-            vx: direction.x * 4.5864,
-            vz: direction.z * 4.5864,
+            vx: direction.x * knifeSpeed,
+            vy: direction.y * knifeSpeed,
+            vz: direction.z * knifeSpeed,
             fromPlayer: fromPlayer === this.player1 ? 1 : 2
         };
         
@@ -841,10 +888,14 @@ class MundoKnifeGame3D {
             const knife = this.knives[i];
             
             knife.mesh.position.x += knife.vx;
+            knife.mesh.position.y += (knife.vy || 0);
             knife.mesh.position.z += knife.vz;
             knife.mesh.rotation.z += 0.3;
             
-            if (Math.abs(knife.mesh.position.x) > 120 || Math.abs(knife.mesh.position.z) > 90) {
+            if (Math.abs(knife.mesh.position.x) > 120 || 
+                Math.abs(knife.mesh.position.z) > 90 ||
+                knife.mesh.position.y < -20 || 
+                knife.mesh.position.y > 150) {
                 this.disposeKnife(knife);
                 this.knives.splice(i, 1);
                 continue;
@@ -1126,7 +1177,7 @@ class MundoKnifeGame3D {
         });
         
         socket.on('opponentKnifeThrow', (data) => {
-            this.createKnife3DTowards(this.player2, data.targetX, data.targetZ);
+            this.createKnife3DTowards(this.player2, data.targetX, data.targetZ, null);
             this.player2.lastKnifeTime = Date.now();
         });
         
