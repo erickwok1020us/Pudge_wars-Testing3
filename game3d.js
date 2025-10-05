@@ -884,7 +884,7 @@ class MundoKnifeGame3D {
                 Math.pow(knifePos.z - targetPos.z, 2)
             );
             
-            if (distance < this.characterSize * 3) {
+            if (distance < this.characterSize * 0.7) {
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 target.health--;
