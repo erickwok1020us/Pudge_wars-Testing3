@@ -592,6 +592,14 @@ class MundoKnifeGame3D {
                 qSkillSound.play().catch(e => {});
             }
             
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            const intersects = this.raycaster.intersectObject(this.invisibleGround);
+            
+            if (intersects.length > 0) {
+                this.mouseWorldX = intersects[0].point.x;
+                this.mouseWorldZ = intersects[0].point.z;
+            }
+            
             if (this.mouseWorldX === 0 && this.mouseWorldZ === 0) {
                 const defaultTargetX = this.player1.x + (this.player1.facing * 20);
                 const defaultTargetZ = this.player1.z;
