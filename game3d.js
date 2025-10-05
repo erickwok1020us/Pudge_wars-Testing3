@@ -306,7 +306,7 @@ class MundoKnifeGame3D {
             targetZ: null,
             moveSpeed: 0.39,
             lastKnifeTime: 0,
-            knifeCooldown: this.isMultiplayer ? 2200 : 60000,
+            knifeCooldown: this.isMultiplayer ? 2200 : 300000,
             mesh: null,
             aiStartDelay: 0,
             aiCanAttack: !this.isMultiplayer,
@@ -443,8 +443,6 @@ class MundoKnifeGame3D {
         
         if (player.health <= 0) {
             desiredState = 'death';
-        } else if (player.isThrowingKnife) {
-            desiredState = 'skill';
         } else if (player.isMoving) {
             desiredState = 'run';
         }
