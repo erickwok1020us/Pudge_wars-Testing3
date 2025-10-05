@@ -601,10 +601,10 @@ class MundoKnifeGame3D {
         const now = Date.now();
         
         if (now - this.player1.lastKnifeTime >= this.player1.knifeCooldown) {
-            const qSkillSound = document.getElementById('qSkillSound');
-            if (qSkillSound) {
-                qSkillSound.currentTime = 0;
-                qSkillSound.play().catch(e => {});
+            const knifeSliceSound = document.getElementById('knifeSliceSound');
+            if (knifeSliceSound) {
+                knifeSliceSound.currentTime = 0;
+                knifeSliceSound.play().catch(e => {});
             }
             
             let targetX, targetZ, rayDirection;
@@ -662,10 +662,10 @@ class MundoKnifeGame3D {
         const now = Date.now();
         
         if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
-            const qSkillSound = document.getElementById('qSkillSound');
-            if (qSkillSound) {
-                qSkillSound.currentTime = 0;
-                qSkillSound.play().catch(e => {});
+            const knifeSliceSound = document.getElementById('knifeSliceSound');
+            if (knifeSliceSound) {
+                knifeSliceSound.currentTime = 0;
+                knifeSliceSound.play().catch(e => {});
             }
             
             let targetX = this.player1.x;
@@ -890,7 +890,6 @@ class MundoKnifeGame3D {
             knife.mesh.position.x += knife.vx;
             knife.mesh.position.y += (knife.vy || 0);
             knife.mesh.position.z += knife.vz;
-            knife.mesh.rotation.z += 0.3;
             
             if (Math.abs(knife.mesh.position.x) > 120 || 
                 Math.abs(knife.mesh.position.z) > 90 ||
@@ -961,6 +960,16 @@ class MundoKnifeGame3D {
             if (distance < this.characterSize * 0.7) {
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
+                const knifeSliceSound = document.getElementById('knifeSliceSound');
+                if (knifeSliceSound) {
+                    knifeSliceSound.pause();
+                }
+                const hitSound = document.getElementById('hitSound');
+                if (hitSound) {
+                    hitSound.currentTime = 0;
+                    hitSound.play().catch(e => {});
+                }
+                
                 target.health--;
                 this.updateHealthDisplay();
                 
@@ -1029,6 +1038,20 @@ class MundoKnifeGame3D {
     endGame(winnerId) {
         this.gameState.isRunning = false;
         this.gameState.winner = winnerId;
+        
+        if (winnerId === 1) {
+            const victorySound = document.getElementById('victorySound');
+            if (victorySound) {
+                victorySound.currentTime = 0;
+                victorySound.play().catch(e => {});
+            }
+        } else {
+            const gameOverSound = document.getElementById('gameOverSound');
+            if (gameOverSound) {
+                gameOverSound.currentTime = 0;
+                gameOverSound.play().catch(e => {});
+            }
+        }
         
         const overlay = document.getElementById('gameOverOverlay');
         const title = document.getElementById('gameOverTitle');
@@ -1137,10 +1160,6 @@ class MundoKnifeGame3D {
         const countdownOverlay = document.getElementById('countdownOverlay');
         const countdownNumber = document.getElementById('countdownNumber');
         
-        if (typeof stopMainMenuAudio === 'function') {
-            stopMainMenuAudio();
-        }
-        
         countdownOverlay.style.display = 'flex';
         
         let count = 5;
@@ -1150,8 +1169,20 @@ class MundoKnifeGame3D {
             count--;
             if (count > 0) {
                 countdownNumber.textContent = count;
+                
+                if (count === 2) {
+                    if (typeof stopMainMenuAudio === 'function') {
+                        stopMainMenuAudio();
+                    }
+                    const readyFightSound = document.getElementById('readyFightSound');
+                    if (readyFightSound) {
+                        readyFightSound.currentTime = 0;
+                        readyFightSound.play().catch(e => console.log('Ready-fight audio play error:', e));
+                    }
+                }
             } else {
                 countdownNumber.textContent = 'FIGHT!';
+                
                 setTimeout(() => {
                     countdownOverlay.style.display = 'none';
                     this.gameState.countdownActive = false;
