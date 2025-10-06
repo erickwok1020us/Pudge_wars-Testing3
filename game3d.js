@@ -369,13 +369,13 @@ class MundoKnifeGame3D {
                 if (child.material) {
                     if (Array.isArray(child.material)) {
                         child.material.forEach((mat) => {
-                            mat.roughness = 0.9;
-                            mat.metalness = 0.1;
+                            mat.roughness = 0.95;
+                            mat.metalness = 0.05;
                             mat.needsUpdate = true;
                         });
                     } else {
-                        child.material.roughness = 0.9;
-                        child.material.metalness = 0.1;
+                        child.material.roughness = 0.95;
+                        child.material.metalness = 0.05;
                         child.material.needsUpdate = true;
                     }
                 }
@@ -401,41 +401,10 @@ class MundoKnifeGame3D {
         player.currentAnimation = player.animations.idle;
         
         this.scene.add(player.mesh);
-        
-        player.healthSprite = this.createHealthDisplay(player);
-        player.mesh.add(player.healthSprite);
     }
 
     createHealthDisplay(player) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 384;
-        canvas.height = 192;
-        const context = canvas.getContext('2d');
-        
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        
-        context.fillStyle = '#ff4444';
-        context.font = '72px Arial';
-        context.textAlign = 'center';
-        context.fillText('❤️', 160, 120);
-        
-        context.fillStyle = '#ffffff';
-        context.font = 'bold 86px Arial';
-        context.fillText(player.health.toString(), 260, 120);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ 
-            map: texture,
-            depthTest: false,
-            depthWrite: false
-        });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        
-        sprite.scale.set(300, 150, 1);
-        sprite.position.set(0, 180, 0);
-        sprite.renderOrder = 999;
-        
-        return sprite;
+        return null;
     }
 
     lightenColor(color, amount) {
@@ -711,24 +680,38 @@ class MundoKnifeGame3D {
     createKnife3DTowards(fromPlayer, targetX, targetZ, rayDirection = null) {
         const knifeGroup = new THREE.Group();
         
-        const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
-        const bladeMaterial = new THREE.MeshLambertMaterial({ color: 0xC0C0C0 });
+        const bladeGeometry = new THREE.BoxGeometry(0.9, 18, 3.6);
+        const bladeMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xC0C0C0,
+            emissive: 0x888888,
+            emissiveIntensity: 0.5
+        });
         const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-        blade.position.set(0, 2, 0);
+        blade.position.set(0, 6, 0);
         
-        const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
-        const handleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const handleGeometry = new THREE.BoxGeometry(1.2, 7.5, 2.4);
+        const handleMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x8B4513,
+            emissive: 0x2a1505,
+            emissiveIntensity: 0.3
+        });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-        handle.position.set(0, -1.5, 0);
+        handle.position.set(0, -4.5, 0);
         
-        const guardGeometry = new THREE.BoxGeometry(0.5, 0.3, 1.5);
-        const guardMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
+        const guardGeometry = new THREE.BoxGeometry(1.5, 0.9, 4.5);
+        const guardMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x696969,
+            emissive: 0x333333,
+            emissiveIntensity: 0.4
+        });
         const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-        guard.position.set(0, 0.2, 0);
+        guard.position.set(0, 0.6, 0);
         
         knifeGroup.add(blade);
         knifeGroup.add(handle);
         knifeGroup.add(guard);
+        
+        knifeGroup.scale.set(3, 3, 3);
         
         knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
         knifeGroup.castShadow = true;
@@ -751,6 +734,7 @@ class MundoKnifeGame3D {
             knifeGroup.position.y + direction.y,
             knifeGroup.position.z + direction.z
         );
+        knifeGroup.rotateZ(Math.PI / 2);
         
         const knifeData = {
             mesh: knifeGroup,
@@ -767,24 +751,38 @@ class MundoKnifeGame3D {
     createKnife3D(fromPlayer, toPlayer) {
         const knifeGroup = new THREE.Group();
         
-        const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
-        const bladeMaterial = new THREE.MeshLambertMaterial({ color: 0xC0C0C0 });
+        const bladeGeometry = new THREE.BoxGeometry(0.9, 18, 3.6);
+        const bladeMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0xC0C0C0,
+            emissive: 0x888888,
+            emissiveIntensity: 0.5
+        });
         const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-        blade.position.set(0, 2, 0);
+        blade.position.set(0, 6, 0);
         
-        const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
-        const handleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        const handleGeometry = new THREE.BoxGeometry(1.2, 7.5, 2.4);
+        const handleMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x8B4513,
+            emissive: 0x2a1505,
+            emissiveIntensity: 0.3
+        });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-        handle.position.set(0, -1.5, 0);
+        handle.position.set(0, -4.5, 0);
         
-        const guardGeometry = new THREE.BoxGeometry(0.5, 0.3, 1.5);
-        const guardMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
+        const guardGeometry = new THREE.BoxGeometry(1.5, 0.9, 4.5);
+        const guardMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x696969,
+            emissive: 0x333333,
+            emissiveIntensity: 0.4
+        });
         const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-        guard.position.set(0, 0.2, 0);
+        guard.position.set(0, 0.6, 0);
         
         knifeGroup.add(blade);
         knifeGroup.add(handle);
         knifeGroup.add(guard);
+        
+        knifeGroup.scale.set(3, 3, 3);
         
         knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
         knifeGroup.castShadow = true;
@@ -807,6 +805,7 @@ class MundoKnifeGame3D {
             knifeGroup.position.y,
             knifeGroup.position.z + direction.z
         );
+        knifeGroup.rotateZ(Math.PI / 2);
         
         const knifeData = {
             mesh: knifeGroup,
@@ -1057,11 +1056,11 @@ class MundoKnifeGame3D {
         const title = document.getElementById('gameOverTitle');
         const message = document.getElementById('gameOverMessage');
         
-        title.textContent = `Player ${winnerId} Wins!`;
+        title.textContent = winnerId === 1 ? 'You Win!' : 'You Lose';
         if (this.gameMode === 'practice') {
-            message.textContent = `Player ${winnerId} is victorious! Press "R" to retry`;
+            message.textContent = winnerId === 1 ? 'Victory! Press "R" to play again' : 'Defeated! Press "R" to retry';
         } else {
-            message.textContent = `Player ${winnerId} is victorious!`;
+            message.textContent = winnerId === 1 ? 'Victory!' : 'Defeated!';
         }
         overlay.style.display = 'flex';
         overlay.style.background = 'rgba(0, 0, 0, 0.8)';
@@ -1087,32 +1086,49 @@ class MundoKnifeGame3D {
             player2Hearts[i].classList.toggle('empty', i >= this.player2.health);
         }
         
-        if (this.player1.healthSprite && this.player1.healthSprite.material.map) {
-            const canvas = this.player1.healthSprite.material.map.image;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#ff4444';
-            ctx.font = '72px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('❤️', 160, 120);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 86px Arial';
-            ctx.fillText(this.player1.health.toString(), 260, 120);
-            this.player1.healthSprite.material.map.needsUpdate = true;
+        const player1Bar = document.getElementById('player1HealthBar3D');
+        const player2Bar = document.getElementById('player2HealthBar3D');
+        
+        if (player1Bar && this.player1.mesh) {
+            player1Bar.style.display = 'flex';
+            const segments = player1Bar.children;
+            for (let i = 0; i < 5; i++) {
+                segments[i].classList.toggle('lost', i >= this.player1.health);
+            }
+            
+            const pos = new THREE.Vector3(
+                this.player1.x,
+                this.player1.y + this.characterSize * 1.5,
+                this.player1.z
+            );
+            pos.project(this.camera);
+            
+            const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+            
+            player1Bar.style.left = (x - 32) + 'px';
+            player1Bar.style.top = (y - 10) + 'px';
         }
         
-        if (this.player2.healthSprite && this.player2.healthSprite.material.map) {
-            const canvas = this.player2.healthSprite.material.map.image;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#ff4444';
-            ctx.font = '72px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('❤️', 160, 120);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 86px Arial';
-            ctx.fillText(this.player2.health.toString(), 260, 120);
-            this.player2.healthSprite.material.map.needsUpdate = true;
+        if (player2Bar && this.player2.mesh) {
+            player2Bar.style.display = 'flex';
+            const segments = player2Bar.children;
+            for (let i = 0; i < 5; i++) {
+                segments[i].classList.toggle('lost', i >= this.player2.health);
+            }
+            
+            const pos = new THREE.Vector3(
+                this.player2.x,
+                this.player2.y + this.characterSize * 1.5,
+                this.player2.z
+            );
+            pos.project(this.camera);
+            
+            const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+            
+            player2Bar.style.left = (x - 32) + 'px';
+            player2Bar.style.top = (y - 10) + 'px';
         }
     }
 
@@ -1170,7 +1186,7 @@ class MundoKnifeGame3D {
             if (count > 0) {
                 countdownNumber.textContent = count;
                 
-                if (count === 2) {
+                if (count === 3) {
                     if (typeof stopMainMenuAudio === 'function') {
                         stopMainMenuAudio();
                     }
