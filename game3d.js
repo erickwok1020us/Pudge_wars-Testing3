@@ -878,7 +878,6 @@ class MundoKnifeGame3D {
             if (player.mesh) {
                 const groundY = this.groundSurfaceY || 0;
                 player.mesh.position.set(player.x, groundY, player.z);
-                player.y = groundY;
             }
         }
     }
@@ -890,9 +889,8 @@ class MundoKnifeGame3D {
             knife.mesh.position.x += knife.vx;
             knife.mesh.position.y += (knife.vy || 0);
             knife.mesh.position.z += knife.vz;
-            knife.mesh.rotation.z += 0.3;
             
-            if (Math.abs(knife.mesh.position.x) > 120 ||
+            if (Math.abs(knife.mesh.position.x) > 120 || 
                 Math.abs(knife.mesh.position.z) > 90 ||
                 knife.mesh.position.y < -20 || 
                 knife.mesh.position.y > 150) {
@@ -1188,7 +1186,7 @@ class MundoKnifeGame3D {
             if (count > 0) {
                 countdownNumber.textContent = count;
                 
-                if (count === 2) {
+                if (count === 3) {
                     if (typeof stopMainMenuAudio === 'function') {
                         stopMainMenuAudio();
                     }
@@ -1276,7 +1274,6 @@ class MundoKnifeGame3D {
         }
         
         this.updateCooldownDisplay();
-        this.updateHealthDisplay();
         this.renderer.render(this.scene, this.camera);
         
         this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
