@@ -282,7 +282,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player1.z,
             health: 5,
             maxHealth: 5,
-            color: 0xff6b6b,
+            color: 0x330000,
             facing: spawnPositions.player1.facing,
             isMoving: false,
             targetX: null,
@@ -304,7 +304,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player2.z,
             health: 5,
             maxHealth: 5,
-            color: 0x4ecdc4,
+            color: 0x420000,
             facing: spawnPositions.player2.facing,
             isMoving: false,
             targetX: null,
@@ -369,11 +369,13 @@ class MundoKnifeGame3D {
                 if (child.material) {
                     if (Array.isArray(child.material)) {
                         child.material.forEach((mat) => {
+                            mat.color.set(player.color);
                             mat.roughness = 0.95;
                             mat.metalness = 0.05;
                             mat.needsUpdate = true;
                         });
                     } else {
+                        child.material.color.set(player.color);
                         child.material.roughness = 0.95;
                         child.material.metalness = 0.05;
                         child.material.needsUpdate = true;
@@ -734,7 +736,6 @@ class MundoKnifeGame3D {
             knifeGroup.position.y + direction.y,
             knifeGroup.position.z + direction.z
         );
-        knifeGroup.rotateZ(Math.PI / 2);
         
         const knifeData = {
             mesh: knifeGroup,
@@ -805,7 +806,6 @@ class MundoKnifeGame3D {
             knifeGroup.position.y,
             knifeGroup.position.z + direction.z
         );
-        knifeGroup.rotateZ(Math.PI / 2);
         
         const knifeData = {
             mesh: knifeGroup,
@@ -878,6 +878,7 @@ class MundoKnifeGame3D {
             if (player.mesh) {
                 const groundY = this.groundSurfaceY || 0;
                 player.mesh.position.set(player.x, groundY, player.z);
+                player.y = groundY;
             }
         }
     }
@@ -889,8 +890,9 @@ class MundoKnifeGame3D {
             knife.mesh.position.x += knife.vx;
             knife.mesh.position.y += (knife.vy || 0);
             knife.mesh.position.z += knife.vz;
+            knife.mesh.rotation.z += 0.3;
             
-            if (Math.abs(knife.mesh.position.x) > 120 || 
+            if (Math.abs(knife.mesh.position.x) > 120 ||
                 Math.abs(knife.mesh.position.z) > 90 ||
                 knife.mesh.position.y < -20 || 
                 knife.mesh.position.y > 150) {
@@ -944,6 +946,11 @@ class MundoKnifeGame3D {
     checkKnifeCollisions(knife, knifeIndex) {
         const knifePos = knife.mesh.position;
         
+        console.log('Checking collision for knife from player', knife.fromPlayer);
+        console.log('Knife position:', knifePos.x, knifePos.z);
+        console.log('Player1:', this.player1.x, this.player1.z);
+        console.log('Player2:', this.player2.x, this.player2.z);
+        
         const targets = knife.fromPlayer === 1 ? [this.player2] : [this.player1];
         
         targets.forEach(target => {
@@ -956,7 +963,10 @@ class MundoKnifeGame3D {
                 Math.pow(knifePos.z - targetPos.z, 2)
             );
             
+            console.log('Distance to target:', distance, 'Threshold:', this.characterSize * 0.7);
+            
             if (distance < this.characterSize * 0.7) {
+                console.log('COLLISION DETECTED! Hit registered for player', knife.fromPlayer === 1 ? 2 : 1);
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 const knifeSliceSound = document.getElementById('knifeSliceSound');
@@ -1186,14 +1196,19 @@ class MundoKnifeGame3D {
             if (count > 0) {
                 countdownNumber.textContent = count;
                 
-                if (count === 3) {
-                    if (typeof stopMainMenuAudio === 'function') {
-                        stopMainMenuAudio();
+                if (count === 2) {
+                    if (typeof pauseMainMenuAudio === 'function') {
+                        pauseMainMenuAudio();
                     }
                     const readyFightSound = document.getElementById('readyFightSound');
                     if (readyFightSound) {
                         readyFightSound.currentTime = 0;
                         readyFightSound.play().catch(e => console.log('Ready-fight audio play error:', e));
+                        readyFightSound.onended = () => {
+                            if (typeof resumeMainMenuAudio === 'function') {
+                                resumeMainMenuAudio();
+                            }
+                        };
                     }
                 }
             } else {
@@ -1274,6 +1289,7 @@ class MundoKnifeGame3D {
         }
         
         this.updateCooldownDisplay();
+        this.updateHealthDisplay();
         this.renderer.render(this.scene, this.camera);
         
         this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
