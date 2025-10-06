@@ -282,7 +282,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player1.z,
             health: 5,
             maxHealth: 5,
-            color: 0x330000,
+            color: 0xff6b6b,
             facing: spawnPositions.player1.facing,
             isMoving: false,
             targetX: null,
@@ -304,7 +304,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player2.z,
             health: 5,
             maxHealth: 5,
-            color: 0x420000,
+            color: 0x4ecdc4,
             facing: spawnPositions.player2.facing,
             isMoving: false,
             targetX: null,
@@ -682,38 +682,36 @@ class MundoKnifeGame3D {
     createKnife3DTowards(fromPlayer, targetX, targetZ, rayDirection = null) {
         const knifeGroup = new THREE.Group();
         
-        const bladeGeometry = new THREE.BoxGeometry(0.9, 18, 3.6);
+        const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
         const bladeMaterial = new THREE.MeshLambertMaterial({ 
             color: 0xC0C0C0,
             emissive: 0x888888,
             emissiveIntensity: 0.5
         });
         const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-        blade.position.set(0, 6, 0);
+        blade.position.set(0, 2, 0);
         
-        const handleGeometry = new THREE.BoxGeometry(1.2, 7.5, 2.4);
+        const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x8B4513,
             emissive: 0x2a1505,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-        handle.position.set(0, -4.5, 0);
+        handle.position.set(0, -1.5, 0);
         
-        const guardGeometry = new THREE.BoxGeometry(1.5, 0.9, 4.5);
+        const guardGeometry = new THREE.BoxGeometry(0.5, 0.3, 1.5);
         const guardMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x696969,
             emissive: 0x333333,
             emissiveIntensity: 0.4
         });
         const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-        guard.position.set(0, 0.6, 0);
+        guard.position.set(0, 0.2, 0);
         
         knifeGroup.add(blade);
         knifeGroup.add(handle);
         knifeGroup.add(guard);
-        
-        knifeGroup.scale.set(3, 3, 3);
         
         knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
         knifeGroup.castShadow = true;
@@ -752,38 +750,36 @@ class MundoKnifeGame3D {
     createKnife3D(fromPlayer, toPlayer) {
         const knifeGroup = new THREE.Group();
         
-        const bladeGeometry = new THREE.BoxGeometry(0.9, 18, 3.6);
+        const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
         const bladeMaterial = new THREE.MeshLambertMaterial({ 
             color: 0xC0C0C0,
             emissive: 0x888888,
             emissiveIntensity: 0.5
         });
         const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-        blade.position.set(0, 6, 0);
+        blade.position.set(0, 2, 0);
         
-        const handleGeometry = new THREE.BoxGeometry(1.2, 7.5, 2.4);
+        const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x8B4513,
             emissive: 0x2a1505,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-        handle.position.set(0, -4.5, 0);
+        handle.position.set(0, -1.5, 0);
         
-        const guardGeometry = new THREE.BoxGeometry(1.5, 0.9, 4.5);
+        const guardGeometry = new THREE.BoxGeometry(0.5, 0.3, 1.5);
         const guardMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x696969,
             emissive: 0x333333,
             emissiveIntensity: 0.4
         });
         const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-        guard.position.set(0, 0.6, 0);
+        guard.position.set(0, 0.2, 0);
         
         knifeGroup.add(blade);
         knifeGroup.add(handle);
         knifeGroup.add(guard);
-        
-        knifeGroup.scale.set(3, 3, 3);
         
         knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
         knifeGroup.castShadow = true;
