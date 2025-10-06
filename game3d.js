@@ -1186,7 +1186,7 @@ class MundoKnifeGame3D {
             if (count > 0) {
                 countdownNumber.textContent = count;
                 
-                if (count === 3) {
+                if (count === 2) {
                     if (typeof stopMainMenuAudio === 'function') {
                         stopMainMenuAudio();
                     }
@@ -1274,6 +1274,7 @@ class MundoKnifeGame3D {
         }
         
         this.updateCooldownDisplay();
+        this.updateHealthDisplay();
         this.renderer.render(this.scene, this.camera);
         
         this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
