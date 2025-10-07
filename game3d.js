@@ -588,23 +588,34 @@ class MundoKnifeGame3D {
         }
         
         if (now - this.player1.lastKnifeTime >= this.player1.knifeCooldown) {
-            const knifeSliceSound = document.getElementById('knifeSliceSound');
-            if (knifeSliceSound) {
-                knifeSliceSound.currentTime = 0;
-                knifeSliceSound.play().catch(e => {});
-            }
-            
             let targetX, targetZ;
             
-            if (this.mouseWorldX !== undefined && this.mouseWorldZ !== undefined) {
-                targetX = this.mouseWorldX;
-                targetZ = this.mouseWorldZ;
+            if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
+                const tempMouse = {
+                    x: (this.lastMouseClientX / window.innerWidth) * 2 - 1,
+                    y: -(this.lastMouseClientY / window.innerHeight) * 2 + 1
+                };
+                
+                this.raycaster.setFromCamera(tempMouse, this.camera);
+                const intersects = this.raycaster.intersectObject(this.invisibleGround);
+                
+                if (intersects.length > 0) {
+                    targetX = intersects[0].point.x;
+                    targetZ = intersects[0].point.z;
+                } else {
+                    targetX = this.player1.x + (this.player1.facing * 20);
+                    targetZ = this.player1.z;
+                }
             } else {
                 targetX = this.player1.x + (this.player1.facing * 20);
                 targetZ = this.player1.z;
             }
             
-            this.createKnife3DTowards(this.player1, targetX, targetZ, null);
+            const knifeAudio = new Audio('knife-slice-41231.mp3');
+            knifeAudio.volume = 0.6;
+            knifeAudio.play().catch(e => {});
+            
+            this.createKnife3DTowards(this.player1, targetX, targetZ, null, knifeAudio);
             
             this.player1.isThrowingKnife = true;
             this.player1.isMoving = false;
@@ -631,12 +642,6 @@ class MundoKnifeGame3D {
         const now = Date.now();
         
         if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
-            const knifeSliceSound = document.getElementById('knifeSliceSound');
-            if (knifeSliceSound) {
-                knifeSliceSound.currentTime = 0;
-                knifeSliceSound.play().catch(e => {});
-            }
-            
             let targetX = this.player1.x;
             let targetZ = this.player1.z;
             
@@ -663,7 +668,11 @@ class MundoKnifeGame3D {
             targetX += randomOffsetX;
             targetZ += randomOffsetZ;
             
-            this.createKnife3DTowards(this.player2, targetX, targetZ, null);
+            const knifeAudio = new Audio('knife-slice-41231.mp3');
+            knifeAudio.volume = 0.6;
+            knifeAudio.play().catch(e => {});
+            
+            this.createKnife3DTowards(this.player2, targetX, targetZ, null, knifeAudio);
             
             this.player2.isThrowingKnife = true;
             this.player2.isMoving = false;
@@ -677,7 +686,7 @@ class MundoKnifeGame3D {
         }
     }
 
-    createKnife3DTowards(fromPlayer, targetX, targetZ, rayDirection = null) {
+    createKnife3DTowards(fromPlayer, targetX, targetZ, rayDirection = null, audio = null) {
         const knifeGroup = new THREE.Group();
         
         const bladeGeometry = new THREE.BoxGeometry(0.3, 6, 1.2);
@@ -740,7 +749,8 @@ class MundoKnifeGame3D {
             mesh: knifeGroup,
             vx: direction.x * knifeSpeed,
             vz: direction.z * knifeSpeed,
-            fromPlayer: fromPlayer === this.player1 ? 1 : 2
+            fromPlayer: fromPlayer === this.player1 ? 1 : 2,
+            audio: audio
         };
         
         this.knives.push(knifeData);
@@ -904,6 +914,11 @@ class MundoKnifeGame3D {
     }
 
     disposeKnife(knife) {
+        if (knife.audio) {
+            knife.audio.pause();
+            knife.audio = null;
+        }
+        
         knife.mesh.children.forEach(child => {
             if (child.geometry) {
                 child.geometry.dispose();
@@ -959,10 +974,10 @@ class MundoKnifeGame3D {
             if (distance < this.characterSize * 1.05) {
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
-                const knifeSliceSound = document.getElementById('knifeSliceSound');
-                if (knifeSliceSound) {
-                    knifeSliceSound.pause();
+                if (knife.audio) {
+                    knife.audio.pause();
                 }
+                
                 const hitSound = document.getElementById('hitSound');
                 if (hitSound) {
                     hitSound.currentTime = 0;
@@ -1264,14 +1279,18 @@ class MundoKnifeGame3D {
         this.accumulator += frameTime;
         
         while (this.accumulator >= this.fixedDt) {
-            if (this.gameState.isRunning) {
-                this.previousState = this.cloneGameState();
+            if (this.gameState.isRunning || this.gameState.countdownActive) {
+                if (this.gameState.isRunning) {
+                    this.previousState = this.cloneGameState();
+                }
                 this.updatePlayers(this.fixedDt);
-                this.throwKnife();
-                this.updateKnives(this.fixedDt);
-                this.updateParticles();
-                this.updateCamera();
-                this.currentState = this.cloneGameState();
+                if (this.gameState.isRunning) {
+                    this.throwKnife();
+                    this.updateKnives(this.fixedDt);
+                    this.updateParticles();
+                    this.updateCamera();
+                    this.currentState = this.cloneGameState();
+                }
             }
             this.accumulator -= this.fixedDt;
         }
