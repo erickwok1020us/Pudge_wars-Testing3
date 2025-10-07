@@ -61,7 +61,7 @@ class MundoKnifeGame3D {
         const loadingAsset = document.getElementById('loadingAsset');
         
         if (loadingBar) loadingBar.style.width = percentage + '%';
-        if (loadingText) loadingText.textContent = `Loading assets... ${percentage}%`;
+        if (loadingText) loadingText.textContent = `Loading assets...`;
         if (loadingAsset) loadingAsset.textContent = assetName;
         
         if (percentage >= 100) {
@@ -661,12 +661,19 @@ class MundoKnifeGame3D {
                 }
             }
             
-            const accuracy = 0.9;
-            const randomOffsetX = (Math.random() - 0.5) * (1 - accuracy) * 20;
-            const randomOffsetZ = (Math.random() - 0.5) * (1 - accuracy) * 20;
+            const hitChance = Math.random();
             
-            targetX += randomOffsetX;
-            targetZ += randomOffsetZ;
+            if (hitChance < 0.71) {
+                const smallOffsetX = (Math.random() - 0.5) * 2;
+                const smallOffsetZ = (Math.random() - 0.5) * 2;
+                targetX += smallOffsetX;
+                targetZ += smallOffsetZ;
+            } else {
+                const largeOffsetX = (Math.random() - 0.5) * 30;
+                const largeOffsetZ = (Math.random() - 0.5) * 30;
+                targetX += largeOffsetX;
+                targetZ += largeOffsetZ;
+            }
             
             const knifeAudio = new Audio('knife-slice-41231.mp3');
             knifeAudio.volume = 0.4;
@@ -1298,11 +1305,11 @@ class MundoKnifeGame3D {
                     this.previousState = this.cloneGameState();
                 }
                 this.updatePlayers(this.fixedDt);
+                this.updateCamera();
                 if (this.gameState.isRunning) {
                     this.throwKnife();
                     this.updateKnives(this.fixedDt);
                     this.updateParticles();
-                    this.updateCamera();
                     this.currentState = this.cloneGameState();
                 }
             }
