@@ -593,7 +593,7 @@ class MundoKnifeGame3D {
                 knifeSliceSound.play().catch(e => {});
             }
             
-            let targetX, targetZ, rayDirection;
+            let targetX, targetZ;
             
             if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
                 const tempMouse = {
@@ -603,10 +603,6 @@ class MundoKnifeGame3D {
                 
                 this.raycaster.setFromCamera(tempMouse, this.camera);
                 
-                rayDirection = this.raycaster.ray.direction.clone().normalize();
-                rayDirection.y = 0;
-                rayDirection.normalize();
-                
                 const intersects = this.raycaster.intersectObject(this.invisibleGround);
                 
                 if (intersects.length > 0) {
@@ -615,15 +611,13 @@ class MundoKnifeGame3D {
                 } else {
                     targetX = this.player1.x + (this.player1.facing * 20);
                     targetZ = this.player1.z;
-                    rayDirection = null;
                 }
             } else {
                 targetX = this.player1.x + (this.player1.facing * 20);
                 targetZ = this.player1.z;
-                rayDirection = null;
             }
             
-            this.createKnife3DTowards(this.player1, targetX, targetZ, rayDirection);
+            this.createKnife3DTowards(this.player1, targetX, targetZ, null);
             
             this.player1.isThrowingKnife = true;
             this.player1.isMoving = false;
@@ -1202,6 +1196,10 @@ class MundoKnifeGame3D {
         const countdownNumber = document.getElementById('countdownNumber');
         
         countdownOverlay.style.display = 'flex';
+        
+        const totalDelay = 7000;
+        this.player1.lastKnifeTime = Date.now() - (this.player1.knifeCooldown - totalDelay);
+        this.player2.lastKnifeTime = Date.now() - (this.player2.knifeCooldown - totalDelay);
         
         let count = 5;
         countdownNumber.textContent = count;
