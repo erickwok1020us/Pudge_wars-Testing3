@@ -548,10 +548,6 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
-        if (this.gameState.countdownActive) {
-            return;
-        }
-        
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
@@ -597,23 +593,9 @@ class MundoKnifeGame3D {
             
             let targetX, targetZ;
             
-            if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
-                const tempMouse = {
-                    x: (this.lastMouseClientX / window.innerWidth) * 2 - 1,
-                    y: -(this.lastMouseClientY / window.innerHeight) * 2 + 1
-                };
-                
-                this.raycaster.setFromCamera(tempMouse, this.camera);
-                
-                const intersects = this.raycaster.intersectObject(this.invisibleGround);
-                
-                if (intersects.length > 0) {
-                    targetX = intersects[0].point.x;
-                    targetZ = intersects[0].point.z;
-                } else {
-                    targetX = this.player1.x + (this.player1.facing * 20);
-                    targetZ = this.player1.z;
-                }
+            if (this.mouseWorldX !== undefined && this.mouseWorldZ !== undefined) {
+                targetX = this.mouseWorldX;
+                targetZ = this.mouseWorldZ;
             } else {
                 targetX = this.player1.x + (this.player1.facing * 20);
                 targetZ = this.player1.z;
@@ -970,7 +952,7 @@ class MundoKnifeGame3D {
                 Math.pow(knifePos.z - targetPos.z, 2)
             );
             
-            if (distance < this.characterSize * 1.5) {
+            if (distance < this.characterSize * 1.05) {
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 const knifeSliceSound = document.getElementById('knifeSliceSound');
@@ -1112,7 +1094,7 @@ class MundoKnifeGame3D {
             
             const pos = new THREE.Vector3(
                 this.player1.x,
-                this.player1.y + this.characterSize * 1.5,
+                this.player1.y + this.characterSize * 1.95,
                 this.player1.z
             );
             pos.project(this.camera);
@@ -1133,7 +1115,7 @@ class MundoKnifeGame3D {
             
             const pos = new THREE.Vector3(
                 this.player2.x,
-                this.player2.y + this.characterSize * 1.5,
+                this.player2.y + this.characterSize * 1.95,
                 this.player2.z
             );
             pos.project(this.camera);
@@ -1192,11 +1174,10 @@ class MundoKnifeGame3D {
         
         countdownOverlay.style.display = 'flex';
         
-        const totalDelay = 7000;
+        this.player1.knifeCooldown = 5000;
+        this.player2.knifeCooldown = 5000;
         this.player1.lastKnifeTime = Date.now();
         this.player2.lastKnifeTime = Date.now();
-        this.player1.knifeCooldown = totalDelay;
-        this.player2.knifeCooldown = totalDelay;
         
         let count = 5;
         countdownNumber.textContent = count;
@@ -1224,18 +1205,20 @@ class MundoKnifeGame3D {
             } else {
                 countdownNumber.textContent = 'FIGHT!';
                 
+                this.player1.canAttack = true;
+                this.player2.aiCanAttack = true;
+                this.player1.knifeCooldown = 2200;
+                this.player2.knifeCooldown = 2200;
+                
+                if (typeof pauseMainMenuAudio === 'function') {
+                    pauseMainMenuAudio();
+                }
+                
                 setTimeout(() => {
                     countdownOverlay.style.display = 'none';
                     this.gameState.countdownActive = false;
                     this.gameState.isRunning = true;
                     this.gameState.gameStarted = true;
-                    
-                    setTimeout(() => {
-                        this.player1.canAttack = true;
-                        this.player2.aiCanAttack = true;
-                        this.player1.knifeCooldown = 2200;
-                        this.player2.knifeCooldown = 2200;
-                    }, 2000);
                 }, 500);
                 clearInterval(countdownInterval);
             }
