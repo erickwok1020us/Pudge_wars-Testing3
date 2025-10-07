@@ -316,7 +316,7 @@ class MundoKnifeGame3D {
             knifeCooldown: 2200,
             mesh: null,
             aiStartDelay: 0,
-            aiCanAttack: !this.isMultiplayer,
+            aiCanAttack: false,
             isThrowingKnife: false,
             mixer: null,
             animations: {},
@@ -584,7 +584,9 @@ class MundoKnifeGame3D {
     throwKnifeTowardsMouse() {
         const now = Date.now();
         
-        if (!this.player1.canAttack) return;
+        if (!this.player1.canAttack) {
+            return;
+        }
         
         if (now - this.player1.lastKnifeTime >= this.player1.knifeCooldown) {
             const knifeSliceSound = document.getElementById('knifeSliceSound');
@@ -704,8 +706,8 @@ class MundoKnifeGame3D {
         
         const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0xFFD700,
-            emissive: 0x887700,
+            color: 0x4A4A4A,
+            emissive: 0x2A2A2A,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -725,7 +727,8 @@ class MundoKnifeGame3D {
         knifeGroup.add(guard);
         
         const spawnHeight = this.knifeSpawnHeight || this.characterSize;
-        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + spawnHeight, fromPlayer.z);
+        const playerY = fromPlayer.mesh ? fromPlayer.mesh.position.y : 0;
+        knifeGroup.position.set(fromPlayer.x, playerY + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
         let direction;
@@ -750,7 +753,6 @@ class MundoKnifeGame3D {
         const knifeData = {
             mesh: knifeGroup,
             vx: direction.x * knifeSpeed,
-            vy: direction.y * knifeSpeed,
             vz: direction.z * knifeSpeed,
             fromPlayer: fromPlayer === this.player1 ? 1 : 2
         };
@@ -773,8 +775,8 @@ class MundoKnifeGame3D {
         
         const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0xFFD700,
-            emissive: 0x887700,
+            color: 0x4A4A4A,
+            emissive: 0x2A2A2A,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -794,7 +796,8 @@ class MundoKnifeGame3D {
         knifeGroup.add(guard);
         
         const spawnHeight = this.knifeSpawnHeight || this.characterSize;
-        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + spawnHeight, fromPlayer.z);
+        const playerY = fromPlayer.mesh ? fromPlayer.mesh.position.y : 0;
+        knifeGroup.position.set(fromPlayer.x, playerY + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
         let direction = new THREE.Vector3(
@@ -955,11 +958,6 @@ class MundoKnifeGame3D {
     checkKnifeCollisions(knife, knifeIndex) {
         const knifePos = knife.mesh.position;
         
-        console.log('Checking collision for knife from player', knife.fromPlayer);
-        console.log('Knife position:', knifePos.x, knifePos.z);
-        console.log('Player1:', this.player1.x, this.player1.z);
-        console.log('Player2:', this.player2.x, this.player2.z);
-        
         const targets = knife.fromPlayer === 1 ? [this.player2] : [this.player1];
         
         targets.forEach(target => {
@@ -972,10 +970,7 @@ class MundoKnifeGame3D {
                 Math.pow(knifePos.z - targetPos.z, 2)
             );
             
-            console.log('Distance to target:', distance, 'Threshold:', this.characterSize * 0.7);
-            
-            if (distance < this.characterSize * 0.7) {
-                console.log('COLLISION DETECTED! Hit registered for player', knife.fromPlayer === 1 ? 2 : 1);
+            if (distance < this.characterSize * 1.5) {
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 const knifeSliceSound = document.getElementById('knifeSliceSound');
@@ -1198,8 +1193,10 @@ class MundoKnifeGame3D {
         countdownOverlay.style.display = 'flex';
         
         const totalDelay = 7000;
-        this.player1.lastKnifeTime = Date.now() - (this.player1.knifeCooldown - totalDelay);
-        this.player2.lastKnifeTime = Date.now() - (this.player2.knifeCooldown - totalDelay);
+        this.player1.lastKnifeTime = Date.now();
+        this.player2.lastKnifeTime = Date.now();
+        this.player1.knifeCooldown = totalDelay;
+        this.player2.knifeCooldown = totalDelay;
         
         let count = 5;
         countdownNumber.textContent = count;
@@ -1236,6 +1233,8 @@ class MundoKnifeGame3D {
                     setTimeout(() => {
                         this.player1.canAttack = true;
                         this.player2.aiCanAttack = true;
+                        this.player1.knifeCooldown = 2200;
+                        this.player2.knifeCooldown = 2200;
                     }, 2000);
                 }, 500);
                 clearInterval(countdownInterval);
