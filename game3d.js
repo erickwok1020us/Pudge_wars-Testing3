@@ -273,6 +273,7 @@ class MundoKnifeGame3D {
         this.particles = [];
 
         this.characterSize = 10.5;
+        this.knifeSpawnHeight = null;
         
         const spawnPositions = this.generateRandomSpawnPositions();
         
@@ -358,6 +359,17 @@ class MundoKnifeGame3D {
         
         const scaleValue = 0.0805;
         player.mesh.scale.set(scaleValue, scaleValue, scaleValue);
+        
+        player.mesh.updateMatrixWorld(true);
+        const bbox = new THREE.Box3().setFromObject(player.mesh);
+        const modelHeight = bbox.max.y - bbox.min.y;
+        
+        if (this.knifeSpawnHeight === null) {
+            this.knifeSpawnHeight = modelHeight;
+            console.log('✓ Calculated character height from model:', modelHeight);
+            console.log('✓ Previous hardcoded characterSize:', this.characterSize);
+            console.log('✓ Will use calculated height for knife spawn position');
+        }
         
         const groundY = this.groundSurfaceY || 0;
         player.mesh.position.set(player.x, groundY, player.z);
@@ -713,7 +725,8 @@ class MundoKnifeGame3D {
         knifeGroup.add(handle);
         knifeGroup.add(guard);
         
-        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
+        const spawnHeight = this.knifeSpawnHeight || this.characterSize;
+        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
         let direction;
@@ -781,7 +794,8 @@ class MundoKnifeGame3D {
         knifeGroup.add(handle);
         knifeGroup.add(guard);
         
-        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + this.characterSize, fromPlayer.z);
+        const spawnHeight = this.knifeSpawnHeight || this.characterSize;
+        knifeGroup.position.set(fromPlayer.x, fromPlayer.y + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
         let direction = new THREE.Vector3(
