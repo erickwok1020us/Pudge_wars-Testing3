@@ -283,7 +283,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player1.z,
             health: 5,
             maxHealth: 5,
-            color: 0xff6b6b,
+            color: 0x9370DB,
             facing: spawnPositions.player1.facing,
             isMoving: false,
             targetX: null,
@@ -292,6 +292,7 @@ class MundoKnifeGame3D {
             lastKnifeTime: 0,
             knifeCooldown: 2200,
             mesh: null,
+            canAttack: false,
             isThrowingKnife: false,
             mixer: null,
             animations: {},
@@ -305,7 +306,7 @@ class MundoKnifeGame3D {
             z: spawnPositions.player2.z,
             health: 5,
             maxHealth: 5,
-            color: 0x4ecdc4,
+            color: 0x9370DB,
             facing: spawnPositions.player2.facing,
             isMoving: false,
             targetX: null,
@@ -583,6 +584,8 @@ class MundoKnifeGame3D {
     throwKnifeTowardsMouse() {
         const now = Date.now();
         
+        if (!this.player1.canAttack) return;
+        
         if (now - this.player1.lastKnifeTime >= this.player1.knifeCooldown) {
             const knifeSliceSound = document.getElementById('knifeSliceSound');
             if (knifeSliceSound) {
@@ -601,6 +604,8 @@ class MundoKnifeGame3D {
                 this.raycaster.setFromCamera(tempMouse, this.camera);
                 
                 rayDirection = this.raycaster.ray.direction.clone().normalize();
+                rayDirection.y = 0;
+                rayDirection.normalize();
                 
                 const intersects = this.raycaster.intersectObject(this.invisibleGround);
                 
@@ -705,8 +710,8 @@ class MundoKnifeGame3D {
         
         const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0x8B4513,
-            emissive: 0x2a1505,
+            color: 0xFFD700,
+            emissive: 0x887700,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -774,8 +779,8 @@ class MundoKnifeGame3D {
         
         const handleGeometry = new THREE.BoxGeometry(0.4, 2.5, 0.8);
         const handleMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0x8B4513,
-            emissive: 0x2a1505,
+            color: 0xFFD700,
+            emissive: 0x887700,
             emissiveIntensity: 0.3
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
@@ -1231,8 +1236,9 @@ class MundoKnifeGame3D {
                     this.gameState.gameStarted = true;
                     
                     setTimeout(() => {
+                        this.player1.canAttack = true;
                         this.player2.aiCanAttack = true;
-                    }, 1000);
+                    }, 2000);
                 }, 500);
                 clearInterval(countdownInterval);
             }
