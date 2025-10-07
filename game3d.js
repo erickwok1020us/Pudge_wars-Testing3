@@ -274,6 +274,7 @@ class MundoKnifeGame3D {
 
         this.characterSize = 10.5;
         this.knifeSpawnHeight = null;
+        this.actualModelHeight = null;
         
         const spawnPositions = this.generateRandomSpawnPositions();
         
@@ -367,9 +368,11 @@ class MundoKnifeGame3D {
         
         if (this.knifeSpawnHeight === null) {
             this.knifeSpawnHeight = modelHeight;
+            this.actualModelHeight = modelHeight;
+            this.characterSize = modelHeight;
             console.log('✓ Calculated character height from model:', modelHeight);
-            console.log('✓ Previous hardcoded characterSize:', this.characterSize);
-            console.log('✓ Will use calculated height for knife spawn position');
+            console.log('✓ Updated characterSize to match actual model');
+            console.log('✓ Will use for knife spawn and camera positioning');
         }
         
         const groundY = this.groundSurfaceY || 0;
@@ -715,11 +718,12 @@ class MundoKnifeGame3D {
         
         let direction;
         if (rayDirection) {
-            direction = rayDirection.clone();
+            direction = rayDirection.clone().normalize();
         } else {
+            const targetY = 0;
             direction = new THREE.Vector3(
                 targetX - fromPlayer.x,
-                0,
+                targetY - (playerY + spawnHeight),
                 targetZ - fromPlayer.z
             ).normalize();
         }
@@ -1205,8 +1209,6 @@ class MundoKnifeGame3D {
             } else {
                 countdownNumber.textContent = 'FIGHT!';
                 
-                this.player1.canAttack = true;
-                this.player2.aiCanAttack = true;
                 this.player1.knifeCooldown = 2200;
                 this.player2.knifeCooldown = 2200;
                 
@@ -1219,6 +1221,8 @@ class MundoKnifeGame3D {
                     this.gameState.countdownActive = false;
                     this.gameState.isRunning = true;
                     this.gameState.gameStarted = true;
+                    this.player1.canAttack = true;
+                    this.player2.aiCanAttack = true;
                 }, 500);
                 clearInterval(countdownInterval);
             }
