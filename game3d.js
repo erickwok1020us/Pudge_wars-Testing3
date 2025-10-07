@@ -612,7 +612,7 @@ class MundoKnifeGame3D {
             }
             
             const knifeAudio = new Audio('knife-slice-41231.mp3');
-            knifeAudio.volume = 0.6;
+            knifeAudio.volume = 0.4;
             knifeAudio.play().catch(e => {});
             
             this.createKnife3DTowards(this.player1, targetX, targetZ, null, knifeAudio);
@@ -669,7 +669,7 @@ class MundoKnifeGame3D {
             targetZ += randomOffsetZ;
             
             const knifeAudio = new Audio('knife-slice-41231.mp3');
-            knifeAudio.volume = 0.6;
+            knifeAudio.volume = 0.4;
             knifeAudio.play().catch(e => {});
             
             this.createKnife3DTowards(this.player2, targetX, targetZ, null, knifeAudio);
@@ -726,15 +726,29 @@ class MundoKnifeGame3D {
         knifeGroup.castShadow = true;
         
         let direction;
+        let directionXZ;
+        
         if (rayDirection) {
             direction = rayDirection.clone().normalize();
+            const distanceXZ = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+            directionXZ = {
+                x: direction.x / (distanceXZ || 1),
+                z: direction.z / (distanceXZ || 1)
+            };
         } else {
+            const dx = targetX - fromPlayer.x;
+            const dz = targetZ - fromPlayer.z;
+            const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+            
+            directionXZ = {
+                x: dx / (distanceXZ || 1),
+                z: dz / (distanceXZ || 1)
+            };
+            
             const targetY = 0;
-            direction = new THREE.Vector3(
-                targetX - fromPlayer.x,
-                targetY - (playerY + spawnHeight),
-                targetZ - fromPlayer.z
-            ).normalize();
+            const dy = targetY - (playerY + spawnHeight);
+            
+            direction = new THREE.Vector3(directionXZ.x, dy / (distanceXZ || 1), directionXZ.z);
         }
         
         const knifeSpeed = 4.5864;
@@ -747,8 +761,8 @@ class MundoKnifeGame3D {
         
         const knifeData = {
             mesh: knifeGroup,
-            vx: direction.x * knifeSpeed,
-            vz: direction.z * knifeSpeed,
+            vx: directionXZ.x * knifeSpeed,
+            vz: directionXZ.z * knifeSpeed,
             fromPlayer: fromPlayer === this.player1 ? 1 : 2,
             audio: audio
         };
