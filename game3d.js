@@ -229,6 +229,18 @@ class MundoKnifeGame3D {
         this.scene.add(this.invisibleGround);
     }
 
+    generateMissPattern() {
+        const missIndices = [];
+        while (missIndices.length < 2) {
+            const randomIndex = Math.floor(Math.random() * 7);
+            if (!missIndices.includes(randomIndex)) {
+                missIndices.push(randomIndex);
+            }
+        }
+        return missIndices.sort((a, b) => a - b);
+    }
+
+
     generateRandomSpawnPositions() {
         const riverZone = { xMin: -10, xMax: 10 };
         
@@ -322,7 +334,9 @@ class MundoKnifeGame3D {
             mixer: null,
             animations: {},
             currentAnimation: null,
-            animationState: 'idle'
+            animationState: 'idle',
+            throwCount: 0,
+            missPattern: this.generateMissPattern()
         };
 
         this.knives = [];
@@ -661,18 +675,24 @@ class MundoKnifeGame3D {
                 }
             }
             
-            const hitChance = Math.random();
+            const shouldMiss = this.player2.missPattern.includes(this.player2.throwCount);
             
-            if (hitChance < 0.71) {
+            if (shouldMiss) {
+                const largeOffsetX = (Math.random() - 0.5) * 12;
+                const largeOffsetZ = (Math.random() - 0.5) * 12;
+                targetX += largeOffsetX;
+                targetZ += largeOffsetZ;
+            } else {
                 const smallOffsetX = (Math.random() - 0.5) * 2;
                 const smallOffsetZ = (Math.random() - 0.5) * 2;
                 targetX += smallOffsetX;
                 targetZ += smallOffsetZ;
-            } else {
-                const largeOffsetX = (Math.random() - 0.5) * 30;
-                const largeOffsetZ = (Math.random() - 0.5) * 30;
-                targetX += largeOffsetX;
-                targetZ += largeOffsetZ;
+            }
+            
+            this.player2.throwCount++;
+            if (this.player2.throwCount >= 7) {
+                this.player2.throwCount = 0;
+                this.player2.missPattern = this.generateMissPattern();
             }
             
             const knifeAudio = new Audio('knife-slice-41231.mp3');
@@ -736,12 +756,19 @@ class MundoKnifeGame3D {
         let directionXZ;
         
         if (rayDirection) {
-            direction = rayDirection.clone().normalize();
-            const distanceXZ = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+            const dx = rayDirection.x;
+            const dz = rayDirection.z;
+            const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+            
             directionXZ = {
-                x: direction.x / (distanceXZ || 1),
-                z: direction.z / (distanceXZ || 1)
+                x: dx / (distanceXZ || 1),
+                z: dz / (distanceXZ || 1)
             };
+            
+            const targetY = 0;
+            const dy = targetY - (playerY + spawnHeight);
+            
+            direction = new THREE.Vector3(directionXZ.x, dy / (distanceXZ || 1), directionXZ.z);
         } else {
             const dx = targetX - fromPlayer.x;
             const dz = targetZ - fromPlayer.z;
