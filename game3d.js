@@ -1,4 +1,4 @@
-const CDN_BASE_URL = 'https://pub-39b7799330674adc85f6866b080077c2.r2.dev';
+const CDN_BASE_URL = 'https://pub-2d994ab822d5426bad338ecb218683d8.r2.dev';
 
 class MundoKnifeGame3D {
     constructor(mode = 'practice', isMultiplayer = false, isHostPlayer = false) {
@@ -12,7 +12,7 @@ class MundoKnifeGame3D {
         this.previousState = null;
         
         this.loadingProgress = {
-            total: 5,
+            total: 4,
             loaded: 0,
             currentAsset: ''
         };
@@ -31,8 +31,22 @@ class MundoKnifeGame3D {
             this.setupEventListeners();
             this.setupMultiplayerEvents();
             this.gameLoop();
+            if (this.loadingTimeout) {
+                clearTimeout(this.loadingTimeout);
+            }
+            this.hideLoadingOverlay();
         }).catch(error => {
             console.error('Failed to load character animations:', error);
+            console.log('Initializing game with fallback assets...');
+            this.initializeGame();
+            this.setupCamera();
+            this.setupEventListeners();
+            this.setupMultiplayerEvents();
+            this.gameLoop();
+            if (this.loadingTimeout) {
+                clearTimeout(this.loadingTimeout);
+            }
+            this.hideLoadingOverlay();
         });
     }
 
@@ -83,9 +97,8 @@ class MundoKnifeGame3D {
         
         const animationFiles = {
             idle: `${CDN_BASE_URL}/Animation_Idle_frame_rate_60.fbx`,
-            run: `${CDN_BASE_URL}/Animation_RunFast_frame_rate_60.fbx`,
-            skill: `${CDN_BASE_URL}/Animation_Skill_03_frame_rate_60.fbx`,
-            death: `${CDN_BASE_URL}/Animation_Dead_frame_rate_60.fbx`
+            run: `${CDN_BASE_URL}/Animation_Run_60.fbx`,
+            death: `${CDN_BASE_URL}/Animation_Death_60.fbx`
         };
         
         this.characterModel = null;
@@ -109,7 +122,6 @@ class MundoKnifeGame3D {
                         
                         const assetNames = {
                             'run': 'Running Animation',
-                            'skill': 'Skill Animation',
                             'death': 'Death Animation'
                         };
                         this.updateLoadingProgress(assetNames[key] || `${key} Animation`);
@@ -378,6 +390,12 @@ class MundoKnifeGame3D {
     }
 
     createPlayer3D(player) {
+        if (!this.characterModel) {
+            console.log('Character model not available, using fallback mesh');
+            this.createFallbackPlayerMesh(player);
+            return;
+        }
+        
         player.mesh = THREE.SkeletonUtils.clone(this.characterModel);
         
         const scaleValue = 0.0805;
@@ -428,18 +446,42 @@ class MundoKnifeGame3D {
         player.animations = {};
         player.animations.idle = player.mixer.clipAction(this.animations.idle);
         player.animations.run = player.mixer.clipAction(this.animations.run);
-        player.animations.skill = player.mixer.clipAction(this.animations.skill);
         player.animations.death = player.mixer.clipAction(this.animations.death);
         
         player.animations.idle.loop = THREE.LoopRepeat;
         player.animations.run.loop = THREE.LoopRepeat;
-        player.animations.skill.loop = THREE.LoopOnce;
         player.animations.death.loop = THREE.LoopOnce;
         
         player.animations.idle.play();
         player.currentAnimation = player.animations.idle;
         
         this.scene.add(player.mesh);
+    }
+
+    createFallbackPlayerMesh(player) {
+        const geometry = new THREE.BoxGeometry(8, 10, 4);
+        const material = new THREE.MeshLambertMaterial({ color: player.color });
+        player.mesh = new THREE.Mesh(geometry, material);
+        
+        const groundY = this.groundSurfaceY || 0;
+        player.mesh.position.set(player.x, groundY + 5, player.z);
+        player.y = groundY;
+        player.mesh.rotation.y = player.facing === 1 ? Math.PI / 2 : -Math.PI / 2;
+        
+        this.scene.add(player.mesh);
+        
+        if (this.knifeSpawnHeight === null) {
+            this.knifeSpawnHeight = 10;
+            this.actualModelHeight = 10;
+            this.characterSize = 10;
+            console.log('✓ Using fallback character height: 10');
+        }
+        
+        player.mixer = null;
+        player.animations = {};
+        player.currentAnimation = null;
+        
+        console.log('✓ Created fallback player mesh (colored cube)');
     }
 
     createHealthDisplay(player) {
