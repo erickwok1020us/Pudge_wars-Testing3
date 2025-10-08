@@ -963,7 +963,7 @@ class MundoKnifeGame3D {
             
             if (player.mesh) {
                 const groundY = this.groundSurfaceY || 0;
-                player.mesh.position.set(player.x, groundY, player.z);
+                player.mesh.position.y = groundY;
                 player.y = groundY;
             }
         }
@@ -1299,10 +1299,6 @@ class MundoKnifeGame3D {
                 
                 this.player1.knifeCooldown = 2200;
                 this.player2.knifeCooldown = 2200;
-                
-                if (typeof pauseMainMenuAudio === 'function') {
-                    pauseMainMenuAudio();
-                }
                 
                 setTimeout(() => {
                     countdownOverlay.style.display = 'none';

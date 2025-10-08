@@ -787,16 +787,12 @@
         }
 
         function playButtonClickSound() {
-            pauseMainMenuAudio();
             const audio = document.getElementById('buttonClickSound');
             if (audio) {
                 audio.currentTime = 0;
                 audio.play().catch(err => {
                     console.log('Button click sound failed:', err);
                 });
-                audio.onended = () => {
-                    resumeMainMenuAudio();
-                };
             }
         }
         
@@ -1073,6 +1069,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-    <script src="game3d.js?v=143"></script>
+    <script src="game3d.js?v=144"></script>
 </body>
 </html>
