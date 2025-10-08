@@ -801,38 +801,19 @@ class MundoKnifeGame3D {
         knifeGroup.position.set(fromPlayer.x, playerY + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
-        let direction;
-        let directionXZ;
+        const dx = targetX - fromPlayer.x;
+        const dz = targetZ - fromPlayer.z;
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
         
-        if (rayDirection) {
-            const dx = rayDirection.x;
-            const dz = rayDirection.z;
-            const distanceXZ = Math.sqrt(dx * dx + dz * dz);
-            
-            directionXZ = {
-                x: dx / (distanceXZ || 1),
-                z: dz / (distanceXZ || 1)
-            };
-            
-            const targetY = 0;
-            const dy = targetY - (playerY + spawnHeight);
-            
-            direction = new THREE.Vector3(directionXZ.x, dy / (distanceXZ || 1), directionXZ.z);
-        } else {
-            const dx = targetX - fromPlayer.x;
-            const dz = targetZ - fromPlayer.z;
-            const distanceXZ = Math.sqrt(dx * dx + dz * dz);
-            
-            directionXZ = {
-                x: dx / (distanceXZ || 1),
-                z: dz / (distanceXZ || 1)
-            };
-            
-            const targetY = 0;
-            const dy = targetY - (playerY + spawnHeight);
-            
-            direction = new THREE.Vector3(directionXZ.x, dy / (distanceXZ || 1), directionXZ.z);
-        }
+        const directionXZ = {
+            x: dx / (distanceXZ || 1),
+            z: dz / (distanceXZ || 1)
+        };
+        
+        const targetY = 0;
+        const dy = targetY - (playerY + spawnHeight);
+        
+        const direction = new THREE.Vector3(directionXZ.x, dy / (distanceXZ || 1), directionXZ.z);
         
         const knifeSpeed = 4.5864;
         
@@ -1311,11 +1292,6 @@ class MundoKnifeGame3D {
                     if (readyFightSound) {
                         readyFightSound.currentTime = 0;
                         readyFightSound.play().catch(e => console.log('Ready-fight audio play error:', e));
-                        readyFightSound.onended = () => {
-                            if (typeof resumeMainMenuAudio === 'function') {
-                                resumeMainMenuAudio();
-                            }
-                        };
                     }
                 }
             } else {
