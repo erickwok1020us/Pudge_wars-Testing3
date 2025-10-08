@@ -629,7 +629,7 @@ class MundoKnifeGame3D {
             knifeAudio.volume = 0.4;
             knifeAudio.play().catch(e => {});
             
-            this.createKnife3DTowards(this.player1, targetX, targetZ, null, knifeAudio);
+            this.createKnife3DTowards(this.player1, targetX, targetZ, this.raycaster.ray.direction, knifeAudio);
             
             this.player1.isThrowingKnife = true;
             this.player1.isMoving = false;
