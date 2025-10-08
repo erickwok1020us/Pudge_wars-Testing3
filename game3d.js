@@ -18,6 +18,11 @@ class MundoKnifeGame3D {
         };
         
         this.showLoadingOverlay();
+        
+        this.loadingTimeout = setTimeout(() => {
+            this.hideLoadingOverlay();
+        }, 15000);
+        
         this.setupThreeJS();
         
         this.loadCharacterAnimations().then(() => {
@@ -28,7 +33,6 @@ class MundoKnifeGame3D {
             this.gameLoop();
         }).catch(error => {
             console.error('Failed to load character animations:', error);
-            this.hideLoadingOverlay();
         });
     }
 
@@ -66,6 +70,9 @@ class MundoKnifeGame3D {
         
         if (percentage >= 100) {
             setTimeout(() => {
+                if (this.loadingTimeout) {
+                    clearTimeout(this.loadingTimeout);
+                }
                 this.hideLoadingOverlay();
             }, 500);
         }
