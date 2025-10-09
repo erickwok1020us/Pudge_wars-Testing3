@@ -580,35 +580,36 @@
     </style>
 </head>
 <body>
+    <audio id="mainMenuAudio" autoplay loop muted preload="auto">
+        <source src="audio-editor-output.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="buttonClickSound" preload="auto">
+        <source src="button-click.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="qSkillSound" preload="auto">
+        <source src="knife-slice-41231.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="knifeSliceSound" preload="auto">
+        <source src="knife-slice-41231.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="readyFightSound" preload="auto">
+        <source src="ready-fight-37973.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hitSound" preload="auto">
+        <source src="material-hammer-394500.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="gameOverSound" preload="auto">
+        <source src="game-over-deep-male-voice-clip-352695.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="victorySound" preload="auto">
+        <source src="victorymale-version-230553.mp3" type="audio/mpeg">
+    </audio>
+
     <div class="main-menu" id="mainMenu">
         <video class="main-menu-video" autoplay loop muted playsinline preload="auto" poster="video_poster.jpg">
             <source src="dual_blade_hell_dynamic_5s.webm" type="video/webm">
             <source src="dual_blade_hell_dynamic_5s.mp4" type="video/mp4">
         </video>
-        <audio id="mainMenuAudio" autoplay loop muted preload="auto">
-            <source src="audio-editor-output.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="buttonClickSound" preload="auto">
-            <source src="button-click.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="qSkillSound" preload="auto">
-            <source src="knife-slice-41231.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="knifeSliceSound" preload="auto">
-            <source src="knife-slice-41231.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="readyFightSound" preload="auto">
-            <source src="ready-fight-37973.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="hitSound" preload="auto">
-            <source src="material-hammer-394500.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="gameOverSound" preload="auto">
-            <source src="game-over-deep-male-voice-clip-352695.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="victorySound" preload="auto">
-            <source src="victorymale-version-230553.mp3" type="audio/mpeg">
-        </audio>
         <div class="main-menu-overlay"></div>
         <h1 class="game-title">Mundo-cleaver</h1>
         <div class="menu-buttons">
@@ -1069,6 +1070,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-    <script src="game3d.js?v=144"></script>
+    <script src="game3d.js?v=145"></script>
 </body>
 </html>
