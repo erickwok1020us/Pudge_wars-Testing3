@@ -58,8 +58,6 @@ class MundoKnifeGame3D {
         const overlay = document.getElementById('loadingOverlay');
         if (overlay) {
             overlay.style.display = 'flex';
-            const audio = document.getElementById('mainMenuAudio');
-            console.log('🎵 [AUDIO STATE] Loading screen showing - audio.paused=' + audio.paused + ', currentTime=' + audio.currentTime.toFixed(2));
         }
     }
 
@@ -315,8 +313,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player1.x,
             y: 0,
             z: spawnPositions.player1.z,
-            health: 50,
-            maxHealth: 50,
+            health: 5,
+            maxHealth: 5,
             color: 0x9370DB,
             facing: spawnPositions.player1.facing,
             rotation: 0,
@@ -618,6 +616,7 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
+        console.log('🎯 [CLICK] handlePlayerMovement called');
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
@@ -626,17 +625,20 @@ class MundoKnifeGame3D {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
         
+        console.log(`🎯 [CLICK] intersects.length=${intersects.length}`);
         if (intersects.length > 0) {
             const point = intersects[0].point;
+            console.log(`🎯 [CLICK] point.x=${point.x.toFixed(2)}, point.z=${point.z.toFixed(2)}`);
             
             if (Math.abs(point.x) < 10) {
+                console.log('🎯 [CLICK] Blocked: river zone');
                 return;
             }
             
-            console.log(`[MOVEMENT DEBUG] Player1 move command: from (${this.player1.x.toFixed(1)}, ${this.player1.z.toFixed(1)}) to (${point.x.toFixed(1)}, ${point.z.toFixed(1)})`);
             this.player1.targetX = point.x;
             this.player1.targetZ = point.z;
             this.player1.isMoving = true;
+            console.log(`🎯 [CLICK] Movement set: isMoving=true, targetX=${point.x.toFixed(2)}, targetZ=${point.z.toFixed(2)}`);
             
             if (this.isMultiplayer && socket) {
                 socket.emit('playerMove', {
@@ -709,7 +711,15 @@ class MundoKnifeGame3D {
     throwKnife() {
         const now = Date.now();
         
+        console.log(`🔪 [THROW-CHECK] isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive}, aiCanAttack=${this.player2.aiCanAttack}`);
+        
+        if (this.gameState.countdownActive) {
+            console.log(`🔪 [THROW-CHECK] Returning early - countdown is active`);
+            return;
+        }
+        
         if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
+            console.log(`🔪 [AI-ATTACK] AI throwing knife at player1 (isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive})`);
             let targetX = this.player1.x;
             let targetZ = this.player1.z;
             
@@ -930,6 +940,10 @@ class MundoKnifeGame3D {
             const distance = Math.sqrt(dx * dx + dz * dz);
             
             if (distance > 1) {
+                const oldX = player.x;
+                const oldZ = player.z;
+                const oldRot = player.rotation;
+                
                 const newX = player.x + (dx / distance) * player.moveSpeed;
                 const newZ = player.z + (dz / distance) * player.moveSpeed;
                 
@@ -949,7 +963,6 @@ class MundoKnifeGame3D {
                 }
                 
                 if (canMove) {
-                    const oldRot = player.rotation || 0;
                     player.x = newX;
                     player.z = newZ;
                     player.facing = dx > 0 ? 1 : -1;
@@ -957,9 +970,7 @@ class MundoKnifeGame3D {
                     const angle = Math.atan2(dz, dx);
                     player.rotation = -angle + Math.PI / 2;
                     
-                    if (player === this.player1) {
-                        console.log('🏃 [MOVEMENT] P1 updatePlayerMovement - oldRot=' + oldRot.toFixed(3) + ', newRot=' + player.rotation.toFixed(3) + ', isMoving=' + player.isMoving);
-                    }
+                    console.log(`🏃 [MOVEMENT] oldRot=${oldRot.toFixed(3)}, newRot=${player.rotation.toFixed(3)}`);
                 } else {
                     player.isMoving = false;
                     player.targetX = null;
@@ -969,6 +980,12 @@ class MundoKnifeGame3D {
                 player.isMoving = false;
                 player.targetX = null;
                 player.targetZ = null;
+            }
+            
+            if (player.mesh) {
+                const groundY = this.groundSurfaceY || 0;
+                player.mesh.position.y = groundY;
+                player.y = groundY;
             }
         }
     }
@@ -1066,9 +1083,7 @@ class MundoKnifeGame3D {
                     hitSound.play().catch(e => {});
                 }
                 
-                if (target !== this.player1) {
-                    target.health--;
-                }
+                target.health--;
                 this.updateHealthDisplay();
                 
                 this.disposeKnife(knife);
@@ -1272,11 +1287,13 @@ class MundoKnifeGame3D {
 
     startCountdown() {
         this.gameState.countdownActive = true;
+        console.log(`⏰ [COUNTDOWN] Starting countdown, aiCanAttack=${this.player2.aiCanAttack}`);
+        
+        this.previousState = this.cloneGameState();
+        this.currentState = this.cloneGameState();
+        
         const countdownOverlay = document.getElementById('countdownOverlay');
         const countdownNumber = document.getElementById('countdownNumber');
-        
-        const audio = document.getElementById('mainMenuAudio');
-        console.log('🎵 [AUDIO STATE] Countdown starting - audio.paused=' + audio.paused + ', currentTime=' + audio.currentTime.toFixed(2));
         
         countdownOverlay.style.display = 'flex';
         
@@ -1290,17 +1307,13 @@ class MundoKnifeGame3D {
         
         const countdownInterval = setInterval(() => {
             count--;
-            const audio = document.getElementById('mainMenuAudio');
-            console.log('🎵 [AUDIO STATE] Countdown: ' + count + ' - audio.paused=' + audio.paused + ', currentTime=' + audio.currentTime.toFixed(2));
             if (count > 0) {
                 countdownNumber.textContent = count;
                 
                 if (count === 2) {
-                    console.log('🎵 [AUDIO STATE] Count=2, calling pauseMainMenuAudio() NOW');
                     if (typeof pauseMainMenuAudio === 'function') {
                         pauseMainMenuAudio();
                     }
-                    console.log('🎵 [AUDIO STATE] After pauseMainMenuAudio() - audio.paused=' + audio.paused);
                     const readyFightSound = document.getElementById('readyFightSound');
                     if (readyFightSound) {
                         readyFightSound.currentTime = 0;
@@ -1308,19 +1321,20 @@ class MundoKnifeGame3D {
                     }
                 }
             } else {
-                console.log('🎵 [AUDIO STATE] Showing FIGHT! - audio.paused=' + audio.paused);
                 countdownNumber.textContent = 'FIGHT!';
                 
                 this.player1.knifeCooldown = 2200;
                 this.player2.knifeCooldown = 2200;
                 
                 setTimeout(() => {
+                    console.log(`⏰ [COUNTDOWN] Countdown ended, setting isRunning=true, countdownActive=false, aiCanAttack=true`);
                     countdownOverlay.style.display = 'none';
                     this.gameState.countdownActive = false;
                     this.gameState.isRunning = true;
                     this.gameState.gameStarted = true;
                     this.player1.canAttack = true;
                     this.player2.aiCanAttack = true;
+                    console.log(`⏰ [COUNTDOWN] State after update: isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive}, aiCanAttack=${this.player2.aiCanAttack}`);
                 }, 500);
                 clearInterval(countdownInterval);
             }
@@ -1363,17 +1377,15 @@ class MundoKnifeGame3D {
         
         while (this.accumulator >= this.fixedDt) {
             if (this.gameState.isRunning || this.gameState.countdownActive) {
-                if (this.gameState.isRunning) {
-                    this.previousState = this.cloneGameState();
-                }
+                this.previousState = this.cloneGameState();
                 this.updatePlayers(this.fixedDt);
                 this.updateCamera();
                 if (this.gameState.isRunning) {
                     this.throwKnife();
                     this.updateKnives(this.fixedDt);
                     this.updateParticles();
-                    this.currentState = this.cloneGameState();
                 }
+                this.currentState = this.cloneGameState();
             }
             this.accumulator -= this.fixedDt;
         }
@@ -1385,7 +1397,7 @@ class MundoKnifeGame3D {
             this.updatePlayerAnimation(this.player2, frameTime);
         }
         
-        if (this.gameState.isRunning && this.previousState && this.currentState) {
+        if ((this.gameState.isRunning || this.gameState.countdownActive) && this.previousState && this.currentState) {
             const alpha = this.accumulator / this.fixedDt;
             this.interpolateStates(alpha);
         }
@@ -1398,18 +1410,18 @@ class MundoKnifeGame3D {
     }
 
     cloneGameState() {
-        return {
+        const state = {
             player1: {
                 x: this.player1.x,
                 z: this.player1.z,
-                rotation: this.player1.rotation || 0,
-                facing: this.player1.facing
+                facing: this.player1.facing,
+                rotation: this.player1.rotation
             },
             player2: {
                 x: this.player2.x,
                 z: this.player2.z,
-                rotation: this.player2.rotation || 0,
-                facing: this.player2.facing
+                facing: this.player2.facing,
+                rotation: this.player2.rotation
             },
             knives: this.knives.map(knife => ({
                 x: knife.mesh.position.x,
@@ -1417,35 +1429,35 @@ class MundoKnifeGame3D {
                 rotation: knife.mesh.rotation.z
             }))
         };
+        console.log(`🔍 [CLONE] player1: x=${this.player1.x.toFixed(2)}, z=${this.player1.z.toFixed(2)}, rotation=${this.player1.rotation.toFixed(3)} → cloned rotation=${state.player1.rotation.toFixed(3)}`);
+        return state;
     }
     
     interpolateStates(alpha) {
-        const p1PrevX = this.previousState.player1.x;
-        const p1CurrX = this.currentState.player1.x;
-        const p1PrevZ = this.previousState.player1.z;
-        const p1CurrZ = this.currentState.player1.z;
+        const posChanged = Math.abs(this.currentState.player1.x - this.previousState.player1.x) > 0.01 || 
+                          Math.abs(this.currentState.player1.z - this.previousState.player1.z) > 0.01;
         
-        this.player1.mesh.position.x = p1PrevX * (1 - alpha) + p1CurrX * alpha;
-        this.player1.mesh.position.z = p1PrevZ * (1 - alpha) + p1CurrZ * alpha;
+        this.player1.mesh.position.x = this.previousState.player1.x * (1 - alpha) + this.currentState.player1.x * alpha;
+        this.player1.mesh.position.z = this.previousState.player1.z * (1 - alpha) + this.currentState.player1.z * alpha;
         
-        let p1RotDiff = this.currentState.player1.rotation - this.previousState.player1.rotation;
-        if (p1RotDiff > Math.PI) p1RotDiff -= 2 * Math.PI;
-        if (p1RotDiff < -Math.PI) p1RotDiff += 2 * Math.PI;
-        this.player1.mesh.rotation.y = this.previousState.player1.rotation + p1RotDiff * alpha;
+        let prevRot1 = this.previousState.player1.rotation;
+        let currRot1 = this.currentState.player1.rotation;
+        let diff1 = currRot1 - prevRot1;
+        if (diff1 > Math.PI) diff1 -= 2 * Math.PI;
+        if (diff1 < -Math.PI) diff1 += 2 * Math.PI;
+        this.player1.mesh.rotation.y = prevRot1 + diff1 * alpha;
         
-        if (this.player1.isMoving) {
-            const posChanged = Math.abs(p1PrevX - p1CurrX) > 0.001 || Math.abs(p1PrevZ - p1CurrZ) > 0.001;
-            const rotChanged = Math.abs(p1RotDiff) > 0.001;
-            console.log(`🏃 [INTERPOLATE] P1 isMoving=${this.player1.isMoving}, posChanged=${posChanged}, rotChanged=${rotChanged}, prevRot=${this.previousState.player1.rotation.toFixed(3)}, currRot=${this.currentState.player1.rotation.toFixed(3)}, meshRot=${this.player1.mesh.rotation.y.toFixed(3)}, alpha=${alpha.toFixed(3)}`);
-        }
+        console.log(`🏃 [INTERPOLATE] posChanged=${posChanged}, prevRot=${prevRot1.toFixed(3)}, currRot=${currRot1.toFixed(3)}, meshRot=${this.player1.mesh.rotation.y.toFixed(3)}, alpha=${alpha.toFixed(3)}`);
         
         this.player2.mesh.position.x = this.previousState.player2.x * (1 - alpha) + this.currentState.player2.x * alpha;
         this.player2.mesh.position.z = this.previousState.player2.z * (1 - alpha) + this.currentState.player2.z * alpha;
         
-        let p2RotDiff = this.currentState.player2.rotation - this.previousState.player2.rotation;
-        if (p2RotDiff > Math.PI) p2RotDiff -= 2 * Math.PI;
-        if (p2RotDiff < -Math.PI) p2RotDiff += 2 * Math.PI;
-        this.player2.mesh.rotation.y = this.previousState.player2.rotation + p2RotDiff * alpha;
+        let prevRot2 = this.previousState.player2.rotation;
+        let currRot2 = this.currentState.player2.rotation;
+        let diff2 = currRot2 - prevRot2;
+        if (diff2 > Math.PI) diff2 -= 2 * Math.PI;
+        if (diff2 < -Math.PI) diff2 += 2 * Math.PI;
+        this.player2.mesh.rotation.y = prevRot2 + diff2 * alpha;
         
         for (let i = 0; i < this.knives.length && i < this.previousState.knives.length; i++) {
             const knife = this.knives[i];
