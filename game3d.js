@@ -219,6 +219,7 @@ class MundoKnifeGame3D {
             });
             this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
             this.invisibleGround.rotation.x = -Math.PI / 2;
+            this.invisibleGround.rotation.y = Math.PI / 2;
             this.invisibleGround.position.y = 0.05;
             this.scene.add(this.invisibleGround);
             
@@ -244,6 +245,7 @@ class MundoKnifeGame3D {
         });
         this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
         this.invisibleGround.rotation.x = -Math.PI / 2;
+        this.invisibleGround.rotation.y = Math.PI / 2;
         this.invisibleGround.position.y = 0.05;
         this.scene.add(this.invisibleGround);
     }
