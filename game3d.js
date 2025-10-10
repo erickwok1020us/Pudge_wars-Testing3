@@ -219,7 +219,6 @@ class MundoKnifeGame3D {
             });
             this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
             this.invisibleGround.rotation.x = -Math.PI / 2;
-            this.invisibleGround.rotation.y = Math.PI / 2;
             this.invisibleGround.position.y = 0.05;
             this.scene.add(this.invisibleGround);
             
@@ -245,7 +244,6 @@ class MundoKnifeGame3D {
         });
         this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
         this.invisibleGround.rotation.x = -Math.PI / 2;
-        this.invisibleGround.rotation.y = Math.PI / 2;
         this.invisibleGround.position.y = 0.05;
         this.scene.add(this.invisibleGround);
     }
@@ -618,7 +616,6 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
-        console.log('🎯 [CLICK] handlePlayerMovement called');
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
@@ -627,20 +624,16 @@ class MundoKnifeGame3D {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
         
-        console.log(`🎯 [CLICK] intersects.length=${intersects.length}`);
         if (intersects.length > 0) {
             const point = intersects[0].point;
-            console.log(`🎯 [CLICK] point.x=${point.x.toFixed(2)}, point.z=${point.z.toFixed(2)}`);
             
             if (Math.abs(point.x) < 10) {
-                console.log('🎯 [CLICK] Blocked: river zone');
                 return;
             }
             
             this.player1.targetX = point.x;
             this.player1.targetZ = point.z;
             this.player1.isMoving = true;
-            console.log(`🎯 [CLICK] Movement set: isMoving=true, targetX=${point.x.toFixed(2)}, targetZ=${point.z.toFixed(2)}`);
             
             if (this.isMultiplayer && socket) {
                 socket.emit('playerMove', {
@@ -713,15 +706,11 @@ class MundoKnifeGame3D {
     throwKnife() {
         const now = Date.now();
         
-        console.log(`🔪 [THROW-CHECK] isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive}, aiCanAttack=${this.player2.aiCanAttack}`);
-        
         if (this.gameState.countdownActive) {
-            console.log(`🔪 [THROW-CHECK] Returning early - countdown is active`);
             return;
         }
         
         if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
-            console.log(`🔪 [AI-ATTACK] AI throwing knife at player1 (isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive})`);
             let targetX = this.player1.x;
             let targetZ = this.player1.z;
             
