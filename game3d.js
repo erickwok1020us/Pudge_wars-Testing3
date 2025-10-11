@@ -286,20 +286,26 @@ class MundoKnifeGame3D {
             player2: { x: player2Pos.x, z: player2Pos.z, facing: player2Facing }
         };
     }
-    isWithinMapBounds(x, z) {
-        // Block river zone
+    isWithinMapBounds(x, z, player) {
+        // Block river zone for both players
         if (Math.abs(x) < 10) {
             return false;
         }
         
-        // Rectangular bounds check - prevents walking too far from center
-        if (Math.abs(x) > 60 || Math.abs(z) > 50) {
+        if (player && player.facing === 1 && x > -10) {
+            return false;
+        }
+        if (player && player.facing === -1 && x < 10) {
             return false;
         }
         
-        // Octagonal corner cutoff - blocks diagonal corners
+        if (Math.abs(x) > 85 || Math.abs(z) > 70) {
+            return false;
+        }
+        
+        // Octagonal corner cutoff - blocks diagonal corners (black areas)
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 90) {
+        if (cornerDistance > 110) {
             return false;
         }
         
@@ -479,6 +485,7 @@ class MundoKnifeGame3D {
         player.currentAnimation = player.animations.idle;
         
         this.scene.add(player.mesh);
+        player.mesh.visible = true;
     }
 
     createFallbackPlayerMesh(player) {
@@ -492,6 +499,7 @@ class MundoKnifeGame3D {
         player.mesh.rotation.y = player.facing === 1 ? Math.PI / 2 : -Math.PI / 2;
         
         this.scene.add(player.mesh);
+        player.mesh.visible = true;
         
         if (this.knifeSpawnHeight === null) {
             this.knifeSpawnHeight = 10;
@@ -649,7 +657,7 @@ class MundoKnifeGame3D {
             const point = intersects[0].point;
             
             // Check if target position is within valid map bounds
-            if (!this.isWithinMapBounds(point.x, point.z)) {
+            if (!this.isWithinMapBounds(point.x, point.z, this.player1)) {
                 return;
             }
             
@@ -924,11 +932,11 @@ class MundoKnifeGame3D {
         this.updatePlayerMovement(this.player2, dt);
         
         if (!this.isMultiplayer && this.player2.health > 0 && this.gameState.isRunning && !this.player2.isThrowingKnife && Math.random() < 0.06) {
-            const potentialX = this.player2.x + (Math.random() - 0.5) * 25;
-            const potentialZ = this.player2.z + (Math.random() - 0.5) * 25;
+            const potentialX = this.player2.x + (Math.random() - 0.5) * 30;
+            const potentialZ = this.player2.z + (Math.random() - 0.5) * 30;
             
-            this.player2.targetX = Math.max(25, Math.min(60, potentialX));
-            this.player2.targetZ = Math.max(-60, Math.min(60, potentialZ));
+            this.player2.targetX = Math.max(15, Math.min(80, potentialX));
+            this.player2.targetZ = Math.max(-65, Math.min(65, potentialZ));
             this.player2.isMoving = true;
         }
     }
@@ -940,42 +948,22 @@ class MundoKnifeGame3D {
             const distance = Math.sqrt(dx * dx + dz * dz);
             
             if (distance > 1) {
-                const oldX = player.x;
-                const oldZ = player.z;
-                const oldRot = player.rotation;
-                
                 const newX = player.x + (dx / distance) * player.moveSpeed;
                 const newZ = player.z + (dz / distance) * player.moveSpeed;
                 
-                const riverZone = { xMin: -10, xMax: 10 };
-                const mapBounds = { xMin: -70, xMax: 70, zMin: -70, zMax: 70 };
-                let canMove = true;
-                
-                if (player.x < riverZone.xMin && newX > riverZone.xMin) {
-                    canMove = false;
-                } else if (player.x > riverZone.xMax && newX < riverZone.xMax) {
-                    canMove = false;
-                }
-                
-                if (newX < mapBounds.xMin || newX > mapBounds.xMax || 
-                    newZ < mapBounds.zMin || newZ > mapBounds.zMax) {
-                    canMove = false;
-                }
-                
-                if (canMove) {
-                    player.x = newX;
-                    player.z = newZ;
-                    player.facing = dx > 0 ? 1 : -1;
-                    
-                    const angle = Math.atan2(dz, dx);
-                    player.rotation = -angle + Math.PI / 2;
-                    
-                    console.log(`🏃 [MOVEMENT] oldRot=${oldRot.toFixed(3)}, newRot=${player.rotation.toFixed(3)}`);
-                } else {
+                if (!this.isWithinMapBounds(newX, newZ, player)) {
                     player.isMoving = false;
                     player.targetX = null;
                     player.targetZ = null;
+                    return;
                 }
+                
+                player.x = newX;
+                player.z = newZ;
+                player.facing = dx > 0 ? 1 : -1;
+                
+                const angle = Math.atan2(dz, dx);
+                player.rotation = -angle + Math.PI / 2;
             } else {
                 player.isMoving = false;
                 player.targetX = null;
@@ -1567,6 +1555,9 @@ let socket = null;
 let activeRooms = {};
 let isHost = false;
 let opponentSocket = null;
+let isReady = false;
+let opponentReady = false;
+let myPlayerId = null;
 
 function showMainMenu() {
     document.getElementById('mainMenu').style.display = 'flex';
@@ -1590,9 +1581,13 @@ function showMainMenu() {
         socket = null;
     }
     
+    roomCode = null;
     activeRooms = {};
     isHost = false;
     opponentSocket = null;
+    isReady = false;
+    opponentReady = false;
+    myPlayerId = null;
     
     resumeMainMenuAudio(); // (important-comment)
 }
@@ -1602,36 +1597,58 @@ function showCreateRoom() {
     document.getElementById('createRoomInterface').style.display = 'flex';
     gameMode = 'create';
     isHost = true;
+    isReady = false;
+    opponentReady = false;
     
     roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
     document.getElementById('roomCode').textContent = roomCode;
     
-    activeRooms[roomCode] = {
-        host: true,
-        players: 1,
-        hostSocket: null
-    };
-    
     if (!socket) {
-        socket = io().startListening();
+        socket = io('http://localhost:3000');
     }
     
     socket.emit('createRoom', { roomCode: roomCode });
+    
+    socket.on('roomCreated', (data) => {
+        myPlayerId = data.playerId;
+        console.log('Room created, playerId:', myPlayerId);
+    });
     
     socket.on('playerJoined', (data) => {
         if (data.roomCode === roomCode) {
             const player2Slot = document.getElementById('player2Slot');
             player2Slot.className = 'player-slot occupied';
-            player2Slot.innerHTML = '<h3>Player 2</h3><p>Ready to fight!</p>';
-            document.getElementById('startGameBtn').style.display = 'block';
-            activeRooms[roomCode].players = 2;
+            player2Slot.innerHTML = '<h3>Player 2</h3><p id="player2Status">Not Ready</p>';
+            updateStartButtonState();
         }
+    });
+    
+    socket.on('playerReadyUpdate', (data) => {
+        const { playerId, ready } = data;
+        
+        if (playerId === 2) {
+            opponentReady = ready;
+            const player2Status = document.getElementById('player2Status');
+            if (player2Status) {
+                player2Status.textContent = ready ? 'Ready to fight!' : 'Not Ready';
+            }
+        }
+        
+        updateStartButtonState();
+    });
+    
+    socket.on('gameStart', () => {
+        startMultiplayerGame();
     });
     
     const player2Slot = document.getElementById('player2Slot');
     player2Slot.className = 'player-slot empty';
     player2Slot.innerHTML = '<h3>Player 2</h3><p>Waiting for opponent...</p>';
-    document.getElementById('startGameBtn').style.display = 'none';
+    
+    const startBtn = document.getElementById('startGameBtn');
+    if (startBtn) {
+        startBtn.style.display = 'none';
+    }
 }
 
 function simulatePlayerJoin() {
@@ -1645,6 +1662,9 @@ function showJoinRoom() {
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('joinRoomInterface').style.display = 'flex';
     gameMode = 'join';
+    isHost = false;
+    isReady = false;
+    opponentReady = false;
     document.getElementById('roomCodeInput').value = '';
     document.getElementById('joinStatus').innerHTML = '';
 }
@@ -1666,7 +1686,7 @@ function joinRoom() {
     statusDiv.innerHTML = '<p style="color: #4CAF50;">Connecting to room...</p>';
     
     if (!socket) {
-        socket = io().startListening();
+        socket = io('http://localhost:3000');
     }
     
     socket.emit('joinRoom', { roomCode: inputCode });
@@ -1675,11 +1695,29 @@ function joinRoom() {
         if (data.roomCode === inputCode) {
             roomCode = inputCode;
             isHost = false;
-            statusDiv.innerHTML = '<p style="color: #4CAF50;">Successfully joined room! Starting game...</p>';
-            setTimeout(() => {
-                startMultiplayerGame();
-            }, 1500);
+            myPlayerId = data.playerId;
+            isReady = false;
+            opponentReady = false;
+            
+            statusDiv.innerHTML = '<p style="color: #4CAF50;">Successfully joined! Waiting for host to start...</p>';
+            
+            const readyBtn = document.getElementById('readyBtnJoin');
+            if (readyBtn) {
+                readyBtn.style.display = 'block';
+            }
         }
+    });
+    
+    socket.on('playerReadyUpdate', (data) => {
+        const { playerId, ready } = data;
+        
+        if (playerId === 1) {
+            opponentReady = ready;
+        }
+    });
+    
+    socket.on('gameStart', () => {
+        startMultiplayerGame();
     });
     
     socket.on('joinError', (data) => {
@@ -1699,7 +1737,49 @@ function startPractice() {
 }
 
 function startMultiplayerGame() {
+    if (isHost && socket && roomCode) {
+        socket.emit('startGame', { roomCode });
+    }
     startGame(true);
+}
+
+function toggleReady() {
+    isReady = !isReady;
+    
+    const readyBtn = document.getElementById(isHost ? 'readyBtn' : 'readyBtnJoin');
+    const player1Status = document.getElementById('player1Status');
+    
+    if (readyBtn) {
+        readyBtn.textContent = isReady ? 'Not Ready' : 'Ready';
+        readyBtn.style.background = isReady ? '#d32f2f' : '#4CAF50';
+    }
+    
+    if (player1Status && isHost) {
+        player1Status.textContent = isReady ? 'Ready to fight!' : 'Not Ready';
+    }
+    
+    if (socket && roomCode) {
+        socket.emit('playerReady', { roomCode, ready: isReady });
+    }
+    
+    updateStartButtonState();
+}
+
+function updateStartButtonState() {
+    if (!isHost) return;
+    
+    const startBtn = document.getElementById('startGameBtn');
+    if (!startBtn) return;
+    
+    const bothReady = isReady && opponentReady;
+    
+    startBtn.disabled = !bothReady;
+    startBtn.style.opacity = bothReady ? '1' : '0.3';
+    startBtn.style.cursor = bothReady ? 'pointer' : 'not-allowed';
+    
+    if (bothReady) {
+        startBtn.style.display = 'block';
+    }
 }
 
 function startGame(isMultiplayer = false) {
