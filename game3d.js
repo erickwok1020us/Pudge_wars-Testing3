@@ -655,22 +655,9 @@ class MundoKnifeGame3D {
         if (now - this.player1.lastKnifeTime >= this.player1.knifeCooldown) {
             let targetX, targetZ;
             
-            if (this.lastMouseClientX !== undefined && this.lastMouseClientY !== undefined) {
-                const tempMouse = {
-                    x: (this.lastMouseClientX / window.innerWidth) * 2 - 1,
-                    y: -(this.lastMouseClientY / window.innerHeight) * 2 + 1
-                };
-                
-                this.raycaster.setFromCamera(tempMouse, this.camera);
-                const intersects = this.raycaster.intersectObject(this.invisibleGround);
-                
-                if (intersects.length > 0) {
-                    targetX = intersects[0].point.x;
-                    targetZ = intersects[0].point.z;
-                } else {
-                    targetX = this.player1.x + (this.player1.facing * 20);
-                    targetZ = this.player1.z;
-                }
+            if (this.mouseWorldX !== undefined && this.mouseWorldZ !== undefined) {
+                targetX = this.mouseWorldX;
+                targetZ = this.mouseWorldZ;
             } else {
                 targetX = this.player1.x + (this.player1.facing * 20);
                 targetZ = this.player1.z;
@@ -1232,7 +1219,7 @@ class MundoKnifeGame3D {
             const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
             
-            player2Bar.style.left = (x - 32) + 'px';
+            player2Bar.style.left = (x - 67) + 'px';
             player2Bar.style.top = (y - 10) + 'px';
         }
     }
