@@ -1198,7 +1198,7 @@ class MundoKnifeGame3D {
             const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
             
-            player1Bar.style.left = (x - 32) + 'px';
+            player1Bar.style.left = (x - 43) + 'px';
             player1Bar.style.top = (y - 10) + 'px';
         }
         
@@ -1219,7 +1219,7 @@ class MundoKnifeGame3D {
             const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
             
-            player2Bar.style.left = (x - 67) + 'px';
+            player2Bar.style.left = (x - 43) + 'px';
             player2Bar.style.top = (y - 10) + 'px';
         }
     }
