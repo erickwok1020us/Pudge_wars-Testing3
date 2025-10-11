@@ -1150,23 +1150,15 @@ class MundoKnifeGame3D {
         
         title.textContent = winnerId === 1 ? 'You Win!' : 'You Lose';
         if (this.gameMode === 'practice') {
-            message.textContent = winnerId === 1 ? 'Victory! Press "R" to play again' : 'Defeated! Press "R" to retry';
+            message.textContent = winnerId === 1 ? 'Victory! Choose an option below' : 'Defeated! Choose an option below';
         } else {
             message.textContent = winnerId === 1 ? 'Victory!' : 'Defeated!';
         }
         overlay.style.display = 'flex';
         overlay.style.background = 'rgba(0, 0, 0, 0.8)';
         
-        const restartBtn = overlay.querySelector('.restart-btn');
-        if (restartBtn) {
-            if (this.gameMode === 'practice') {
-                restartBtn.textContent = 'Play Again';
-                restartBtn.style.display = 'block';
-            } else {
-                restartBtn.textContent = 'Back to Menu';
-                restartBtn.style.display = 'block';
-            }
-        }
+        const buttons = overlay.querySelectorAll('.restart-btn'); // (important-comment)
+        buttons.forEach(btn => btn.style.display = 'block'); // (important-comment)
     }
 
     updateHealthDisplay() {
@@ -1538,6 +1530,14 @@ function restartGame() {
     }
 }
 
+function returnToMainMenu() {
+    document.getElementById('gameOverOverlay').style.display = 'none';
+    if (currentGame) {
+        currentGame.dispose();
+    }
+    showMainMenu();
+}
+
 let currentGame = null;
 let gameMode = 'practice'; // 'practice', 'create', 'join'
 let roomCode = null;
@@ -1571,6 +1571,8 @@ function showMainMenu() {
     activeRooms = {};
     isHost = false;
     opponentSocket = null;
+    
+    resumeMainMenuAudio(); // (important-comment)
 }
 
 function showCreateRoom() {

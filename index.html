@@ -171,6 +171,13 @@
             transform: scale(1.05);
         }
 
+        .game-over-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
         .instructions {
             position: absolute;
             bottom: 20px;
@@ -754,7 +761,10 @@
             <div class="game-over-content">
                 <h1 id="gameOverTitle">YOU ARE DEAD</h1>
                 <p id="gameOverMessage">Game Over</p>
-                <button class="restart-btn" onclick="restartGame()">Restart</button>
+                <div class="game-over-buttons">
+                    <button class="restart-btn" onclick="restartGame()">Play Again</button>
+                    <button class="restart-btn" onclick="returnToMainMenu()">Back to Menu</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1069,6 +1079,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-    <script src="game3d.js?v=154"></script>
+    <script src="game3d.js?v=155"></script>
 </body>
 </html>
