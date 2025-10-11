@@ -293,13 +293,13 @@ class MundoKnifeGame3D {
         }
         
         // Rectangular bounds check - prevents walking too far from center
-        if (Math.abs(x) > 85 || Math.abs(z) > 65) {
+        if (Math.abs(x) > 60 || Math.abs(z) > 50) {
             return false;
         }
         
         // Octagonal corner cutoff - blocks diagonal corners
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 115) {
+        if (cornerDistance > 90) {
             return false;
         }
         
