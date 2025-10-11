@@ -286,6 +286,27 @@ class MundoKnifeGame3D {
             player2: { x: player2Pos.x, z: player2Pos.z, facing: player2Facing }
         };
     }
+    isWithinMapBounds(x, z) {
+        // Block river zone
+        if (Math.abs(x) < 10) {
+            return false;
+        }
+        
+        // Rectangular bounds check - prevents walking too far from center
+        if (Math.abs(x) > 85 || Math.abs(z) > 65) {
+            return false;
+        }
+        
+        // Octagonal corner cutoff - blocks diagonal corners
+        const cornerDistance = Math.abs(x) + Math.abs(z);
+        if (cornerDistance > 115) {
+            return false;
+        }
+        
+        return true;
+    }
+
+
 
     initializeGame() {
         this.gameState = {
@@ -627,7 +648,8 @@ class MundoKnifeGame3D {
         if (intersects.length > 0) {
             const point = intersects[0].point;
             
-            if (Math.abs(point.x) < 10) {
+            // Check if target position is within valid map bounds
+            if (!this.isWithinMapBounds(point.x, point.z)) {
                 return;
             }
             
