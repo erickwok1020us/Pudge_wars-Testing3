@@ -299,18 +299,58 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (Math.abs(x) > 85 || Math.abs(z) > 70) {
+        if (Math.abs(x) > 98 || Math.abs(z) > 74) {
             return false;
         }
         
         // Octagonal corner cutoff - blocks diagonal corners (black areas)
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 110) {
+        if (cornerDistance > 140) {
             return false;
         }
         
         return true;
     }
+    findNearestValidPosition(targetX, targetZ, player) {
+        if (this.isWithinMapBounds(targetX, targetZ, player)) {
+            return { x: targetX, z: targetZ };
+        }
+        
+        let x = targetX;
+        let z = targetZ;
+        
+        x = Math.max(-98, Math.min(98, x));
+        z = Math.max(-74, Math.min(74, z));
+        
+        if (player.facing === 1) {
+            x = Math.min(x, -10);
+        } else if (player.facing === -1) {
+            x = Math.max(x, 10);
+        }
+        
+        const cornerDistance = Math.abs(x) + Math.abs(z);
+        if (cornerDistance > 140) {
+            const scale = 140 / cornerDistance;
+            x = x * scale;
+            z = z * scale;
+        }
+        
+        if (Math.abs(x) < 10) {
+            if (player.facing === 1) {
+                x = -10;
+            } else {
+                x = 10;
+            }
+        }
+        
+        if (!this.isWithinMapBounds(x, z, player)) {
+            x = player.facing === 1 ? -35 : 35;
+            z = Math.max(-74, Math.min(74, z));
+        }
+        
+        return { x, z };
+    }
+
 
 
 
@@ -656,20 +696,17 @@ class MundoKnifeGame3D {
         if (intersects.length > 0) {
             const point = intersects[0].point;
             
-            // Check if target position is within valid map bounds
-            if (!this.isWithinMapBounds(point.x, point.z, this.player1)) {
-                return;
-            }
+            const validPos = this.findNearestValidPosition(point.x, point.z, this.player1);
             
-            this.player1.targetX = point.x;
-            this.player1.targetZ = point.z;
+            this.player1.targetX = validPos.x;
+            this.player1.targetZ = validPos.z;
             this.player1.isMoving = true;
             
             if (this.isMultiplayer && socket) {
                 socket.emit('playerMove', {
                     roomCode: roomCode,
-                    targetX: point.x,
-                    targetZ: point.z
+                    targetX: validPos.x,
+                    targetZ: validPos.z
                 });
             }
         }
@@ -935,8 +972,8 @@ class MundoKnifeGame3D {
             const potentialX = this.player2.x + (Math.random() - 0.5) * 30;
             const potentialZ = this.player2.z + (Math.random() - 0.5) * 30;
             
-            this.player2.targetX = Math.max(15, Math.min(80, potentialX));
-            this.player2.targetZ = Math.max(-65, Math.min(65, potentialZ));
+            this.player2.targetX = Math.max(15, Math.min(95, potentialX));
+            this.player2.targetZ = Math.max(-70, Math.min(70, potentialZ));
             this.player2.isMoving = true;
         }
     }
@@ -1409,7 +1446,6 @@ class MundoKnifeGame3D {
                 rotation: knife.mesh.rotation.z
             }))
         };
-        console.log(`🔍 [CLONE] player1: x=${this.player1.x.toFixed(2)}, z=${this.player1.z.toFixed(2)}, rotation=${this.player1.rotation.toFixed(3)} → cloned rotation=${state.player1.rotation.toFixed(3)}`);
         return state;
     }
     
@@ -1426,8 +1462,6 @@ class MundoKnifeGame3D {
         if (diff1 > Math.PI) diff1 -= 2 * Math.PI;
         if (diff1 < -Math.PI) diff1 += 2 * Math.PI;
         this.player1.mesh.rotation.y = prevRot1 + diff1 * alpha;
-        
-        console.log(`🏃 [INTERPOLATE] posChanged=${posChanged}, prevRot=${prevRot1.toFixed(3)}, currRot=${currRot1.toFixed(3)}, meshRot=${this.player1.mesh.rotation.y.toFixed(3)}, alpha=${alpha.toFixed(3)}`);
         
         this.player2.mesh.position.x = this.previousState.player2.x * (1 - alpha) + this.currentState.player2.x * alpha;
         this.player2.mesh.position.z = this.previousState.player2.z * (1 - alpha) + this.currentState.player2.z * alpha;
