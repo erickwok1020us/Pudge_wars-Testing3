@@ -287,17 +287,24 @@ class MundoKnifeGame3D {
         };
     }
 
-    isWithinMapBounds(x, z) {
+    isWithinMapBounds(x, z, player) {
         if (Math.abs(x) < 10) {
             return false;
         }
         
-        if (Math.abs(x) > 60 || Math.abs(z) > 50) {
+        if (player && player.facing === 1 && x > -10) {
+            return false;
+        }
+        if (player && player.facing === -1 && x < 10) {
+            return false;
+        }
+        
+        if (Math.abs(x) > 85 || Math.abs(z) > 70) {
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 90) {
+        if (cornerDistance > 110) {
             return false;
         }
         
@@ -646,7 +653,7 @@ class MundoKnifeGame3D {
         if (intersects.length > 0) {
             const point = intersects[0].point;
             
-            if (!this.isWithinMapBounds(point.x, point.z)) {
+            if (!this.isWithinMapBounds(point.x, point.z, this.player1)) {
                 return;
             }
             
