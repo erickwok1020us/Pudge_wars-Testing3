@@ -277,81 +277,14 @@ class MundoKnifeGame3D {
             z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin
         };
         
-        const player1Facing = -1;
-        const player2Facing = 1;
+        const player1Facing = 1;
+        const player2Facing = -1;
         
         return {
             player1: { x: player1Pos.x, z: player1Pos.z, facing: player1Facing },
             player2: { x: player2Pos.x, z: player2Pos.z, facing: player2Facing }
         };
     }
-    isWithinMapBounds(x, z, player) {
-        // Block river zone for both players
-        if (Math.abs(x) < 10) {
-            return false;
-        }
-        
-        if (player && player.facing === -1 && x > -10) {
-            return false;
-        }
-        if (player && player.facing === 1 && x < 10) {
-            return false;
-        }
-        
-        if (Math.abs(x) > 98 || Math.abs(z) > 74) {
-            return false;
-        }
-        
-        // Octagonal corner cutoff - blocks diagonal corners (black areas)
-        const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 140) {
-            return false;
-        }
-        
-        return true;
-    }
-    findNearestValidPosition(targetX, targetZ, player) {
-        if (this.isWithinMapBounds(targetX, targetZ, player)) {
-            return { x: targetX, z: targetZ };
-        }
-        
-        let x = targetX;
-        let z = targetZ;
-        
-        x = Math.max(-98, Math.min(98, x));
-        z = Math.max(-74, Math.min(74, z));
-        
-        if (player.facing === -1) {
-            x = Math.min(x, -10);
-        } else if (player.facing === 1) {
-            x = Math.max(x, 10);
-        }
-        
-        const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 140) {
-            const scale = 140 / cornerDistance;
-            x = x * scale;
-            z = z * scale;
-        }
-        
-        if (Math.abs(x) < 10) {
-            if (player.facing === -1) {
-                x = -10;
-            } else {
-                x = 10;
-            }
-        }
-        
-        if (!this.isWithinMapBounds(x, z, player)) {
-            x = player.facing === -1 ? -35 : 35;
-            z = Math.max(-74, Math.min(74, z));
-        }
-        
-        return { x, z };
-    }
-
-
-
 
     initializeGame() {
         this.gameState = {
@@ -695,17 +628,19 @@ class MundoKnifeGame3D {
         if (intersects.length > 0) {
             const point = intersects[0].point;
             
-            const validPos = this.findNearestValidPosition(point.x, point.z, this.player1);
+            if (Math.abs(point.x) < 10) {
+                return;
+            }
             
-            this.player1.targetX = validPos.x;
-            this.player1.targetZ = validPos.z;
+            this.player1.targetX = point.x;
+            this.player1.targetZ = point.z;
             this.player1.isMoving = true;
             
             if (this.isMultiplayer && socket) {
                 socket.emit('playerMove', {
                     roomCode: roomCode,
-                    targetX: validPos.x,
-                    targetZ: validPos.z
+                    targetX: point.x,
+                    targetZ: point.z
                 });
             }
         }
@@ -986,13 +921,6 @@ class MundoKnifeGame3D {
             if (distance > 1) {
                 const newX = player.x + (dx / distance) * player.moveSpeed;
                 const newZ = player.z + (dz / distance) * player.moveSpeed;
-                
-                if (!this.isWithinMapBounds(newX, newZ, player)) {
-                    player.isMoving = false;
-                    player.targetX = null;
-                    player.targetZ = null;
-                    return;
-                }
                 
                 player.x = newX;
                 player.z = newZ;
