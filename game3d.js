@@ -190,7 +190,6 @@ class MundoKnifeGame3D {
             const uniformScale = Math.min(scaleX, scaleZ);
             
             mapModel.scale.set(uniformScale, uniformScale, uniformScale);
-            mapModel.rotation.y = Math.PI / 2;
             mapModel.position.y = 0;
             
             mapModel.traverse((child) => {
