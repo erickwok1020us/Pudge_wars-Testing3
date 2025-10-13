@@ -299,12 +299,12 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (Math.abs(x) > 85 || Math.abs(z) > 70) {
+        if (Math.abs(x) > 95 || Math.abs(z) > 72) {
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 110) {
+        if (cornerDistance > 140) {
             return false;
         }
         
