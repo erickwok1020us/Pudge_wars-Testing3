@@ -278,8 +278,8 @@ class MundoKnifeGame3D {
             z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin
         };
         
-        const player1Facing = 1;
-        const player2Facing = -1;
+        const player1Facing = -1;
+        const player2Facing = 1;
         
         return {
             player1: { x: player1Pos.x, z: player1Pos.z, facing: player1Facing },
@@ -292,10 +292,10 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (player && player.facing === 1 && x > -10) {
+        if (player && player.facing === -1 && x > -10) {
             return false;
         }
-        if (player && player.facing === -1 && x < 10) {
+        if (player && player.facing === 1 && x < 10) {
             return false;
         }
         
@@ -322,9 +322,9 @@ class MundoKnifeGame3D {
         x = Math.max(-98, Math.min(98, x));
         z = Math.max(-74, Math.min(74, z));
         
-        if (player.facing === 1) {
+        if (player.facing === -1) {
             x = Math.min(x, -10);
-        } else if (player.facing === -1) {
+        } else if (player.facing === 1) {
             x = Math.max(x, 10);
         }
         
@@ -336,7 +336,7 @@ class MundoKnifeGame3D {
         }
         
         if (Math.abs(x) < 10) {
-            if (player.facing === 1) {
+            if (player.facing === -1) {
                 x = -10;
             } else {
                 x = 10;
@@ -344,7 +344,7 @@ class MundoKnifeGame3D {
         }
         
         if (!this.isWithinMapBounds(x, z, player)) {
-            x = player.facing === 1 ? -35 : 35;
+            x = player.facing === -1 ? -35 : 35;
             z = Math.max(-74, Math.min(74, z));
         }
         
