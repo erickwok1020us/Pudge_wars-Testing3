@@ -330,12 +330,6 @@
             letter-spacing: 2px;
         }
 
-        .room-content .game-title {
-            font-size: clamp(2rem, 5vw, 3.5rem);
-            letter-spacing: 1px;
-            margin-bottom: 30px;
-        }
-
         .menu-buttons {
             display: flex;
             flex-direction: column;
@@ -389,7 +383,7 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             text-align: center;
-            max-width: 800px;
+            max-width: 600px;
             width: 90%;
         }
 
@@ -632,11 +626,6 @@
     </div>
 
     <div class="room-interface" id="createRoomInterface">
-        <video class="main-menu-video" autoplay loop muted playsinline preload="auto">
-            <source src="dual_blade_hell_dynamic_5s.webm" type="video/webm">
-            <source src="dual_blade_hell_dynamic_5s.mp4" type="video/mp4">
-        </video>
-        <div class="main-menu-overlay"></div>
         <button class="back-btn" onclick="showMainMenu()">← Back</button>
         <div class="room-content">
             <h1 class="game-title">Mundo-cleaver</h1>
@@ -646,26 +635,18 @@
             <div class="player-slots">
                 <div class="player-slot occupied">
                     <h3>Player 1 (You)</h3>
-                    <p id="player1Status">Not Ready</p>
+                    <p>Ready to fight!</p>
                 </div>
                 <div class="player-slot empty" id="player2Slot">
                     <h3>Player 2</h3>
                     <p>Waiting for opponent...</p>
                 </div>
             </div>
-            <div class="ready-start-buttons" style="display: flex; gap: 20px; justify-content: center; margin-top: 30px;">
-                <button class="menu-btn" id="readyBtn" onclick="toggleReady()">Ready</button>
-                <button class="menu-btn" id="startGameBtn" onclick="startMultiplayerGame()" style="display: none; opacity: 0.3;" disabled>Start Game</button>
-            </div>
+            <button class="menu-btn" id="startGameBtn" onclick="startMultiplayerGame()" style="display: none;">Start Game</button>
         </div>
     </div>
 
     <div class="room-interface" id="joinRoomInterface">
-        <video class="main-menu-video" autoplay loop muted playsinline preload="auto">
-            <source src="dual_blade_hell_dynamic_5s.webm" type="video/webm">
-            <source src="dual_blade_hell_dynamic_5s.mp4" type="video/mp4">
-        </video>
-        <div class="main-menu-overlay"></div>
         <button class="back-btn" onclick="showMainMenu()">← Back</button>
         <div class="room-content">
             <h1 class="game-title">Mundo-cleaver</h1>
@@ -674,7 +655,6 @@
             <input type="text" class="room-input" id="roomCodeInput" placeholder="Enter room code..." maxlength="6">
             <br>
             <button class="menu-btn" onclick="joinRoom()">Join Game</button>
-            <button class="menu-btn" id="readyBtnJoin" onclick="toggleReady()" style="display: none; margin-top: 20px;">Ready</button>
             <div id="joinStatus" style="margin-top: 20px;"></div>
         </div>
     </div>
@@ -1096,10 +1076,9 @@
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/fflate@0.6.9/umd/index.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-    <script src="game3d.js?v=163"></script>
+    <script src="game3d.js?v=156"></script>
 </body>
 </html>
