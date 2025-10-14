@@ -265,10 +265,10 @@ class MundoKnifeGame3D {
     generateRandomSpawnPositions() {
         const riverZone = { xMin: -10, xMax: 10 };
         
-        const zBounds = { zMin: -40, zMax: 40 };
+        const zBounds = { zMin: -32, zMax: 32 };
         
-        const player1Bounds = { xMin: -50, xMax: -20 };
-        const player2Bounds = { xMin: 20, xMax: 50 };
+        const player1Bounds = { xMin: -42, xMax: -25 };
+        const player2Bounds = { xMin: 25, xMax: 42 };
         
         const player1Pos = {
             x: Math.random() * (player1Bounds.xMax - player1Bounds.xMin) + player1Bounds.xMin,
@@ -310,7 +310,7 @@ class MundoKnifeGame3D {
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 62) {
+        if (cornerDistance > 80) {
             console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
