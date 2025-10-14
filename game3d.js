@@ -212,15 +212,15 @@ class MundoKnifeGame3D {
             
             this.groundSurfaceY = scaledBox.max.y;
             
-            const invisibleGroundGeometry = new THREE.PlaneGeometry(scaledSize.x, scaledSize.z);
+            const invisibleGroundGeometry = new THREE.PlaneGeometry(500, 500);
             const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0x000000, 
                 transparent: true, 
-                opacity: 0 
+                opacity: 0,
+                side: THREE.DoubleSide
             });
             this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
             this.invisibleGround.rotation.x = -Math.PI / 2;
-            this.invisibleGround.rotation.y = Math.PI / 2;
             this.invisibleGround.position.y = this.groundSurfaceY;
             this.scene.add(this.invisibleGround);
             
@@ -238,11 +238,12 @@ class MundoKnifeGame3D {
         this.ground.receiveShadow = true;
         this.scene.add(this.ground);
         
-        const invisibleGroundGeometry = new THREE.PlaneGeometry(200, 150);
+        const invisibleGroundGeometry = new THREE.PlaneGeometry(500, 500);
         const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x000000, 
             transparent: true, 
-            opacity: 0 
+            opacity: 0,
+            side: THREE.DoubleSide
         });
         this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
         this.invisibleGround.rotation.x = -Math.PI / 2;
@@ -599,11 +600,18 @@ class MundoKnifeGame3D {
     }
 
     setupEventListeners() {
+        console.log('🔧 [SETUP] setupEventListeners called');
+        console.log('🔧 [SETUP] renderer:', this.renderer);
+        console.log('🔧 [SETUP] renderer.domElement:', this.renderer.domElement);
+        
         this.renderer.domElement.addEventListener('contextmenu', (e) => {
+            console.log('🔥 [EVENT] contextmenu event fired!', e);
             e.preventDefault();
             e.stopPropagation();
             this.handlePlayerMovement(e);
         }, true);
+        
+        console.log('🔧 [SETUP] contextmenu listener attached to canvas');
         
         document.addEventListener('keydown', (e) => {
             this.keys[e.key.toLowerCase()] = true;
@@ -652,8 +660,34 @@ class MundoKnifeGame3D {
         
         this.mouse.x = mouseX;
         this.mouse.y = mouseY;
+        
+        console.log(`🖱️ [MOUSE] Screen(${event.clientX}, ${event.clientY}) → NDC(${this.mouse.x.toFixed(3)}, ${this.mouse.y.toFixed(3)})`);
+        console.log(`📷 [CAMERA] position: x=${this.camera.position.x.toFixed(2)}, y=${this.camera.position.y.toFixed(2)}, z=${this.camera.position.z.toFixed(2)}`);
+        console.log(`📷 [CAMERA] rotation: x=${this.camera.rotation.x.toFixed(2)}, y=${this.camera.rotation.y.toFixed(2)}, z=${this.camera.rotation.z.toFixed(2)}`);
+        
+        console.log(`🔍 [RAYCAST] invisibleGround exists:`, !!this.invisibleGround);
+        if (this.invisibleGround) {
+            console.log(`🔍 [RAYCAST] invisibleGround.visible:`, this.invisibleGround.visible);
+            console.log(`🔍 [RAYCAST] invisibleGround.position: x=${this.invisibleGround.position.x.toFixed(2)}, y=${this.invisibleGround.position.y.toFixed(2)}, z=${this.invisibleGround.position.z.toFixed(2)}`);
+            console.log(`🔍 [RAYCAST] invisibleGround.rotation: x=${this.invisibleGround.rotation.x.toFixed(2)}, y=${this.invisibleGround.rotation.y.toFixed(2)}, z=${this.invisibleGround.rotation.z.toFixed(2)}`);
+            console.log(`🔍 [RAYCAST] invisibleGround.scale: x=${this.invisibleGround.scale.x.toFixed(2)}, y=${this.invisibleGround.scale.y.toFixed(2)}, z=${this.invisibleGround.scale.z.toFixed(2)}`);
+            console.log(`🔍 [RAYCAST] invisibleGround.geometry.type:`, this.invisibleGround.geometry.type);
+            if (this.invisibleGround.geometry.parameters) {
+                console.log(`🔍 [RAYCAST] invisibleGround.geometry size: width=${this.invisibleGround.geometry.parameters.width}, height=${this.invisibleGround.geometry.parameters.height}`);
+            }
+            console.log(`🔍 [RAYCAST] invisibleGround.material.side:`, this.invisibleGround.material.side, '(0=Front, 1=Back, 2=Double)');
+        }
+        
         this.raycaster.setFromCamera(this.mouse, this.camera);
+        console.log(`🔍 [RAYCAST] ray.origin: x=${this.raycaster.ray.origin.x.toFixed(2)}, y=${this.raycaster.ray.origin.y.toFixed(2)}, z=${this.raycaster.ray.origin.z.toFixed(2)}`);
+        console.log(`🔍 [RAYCAST] ray.direction: x=${this.raycaster.ray.direction.x.toFixed(3)}, y=${this.raycaster.ray.direction.y.toFixed(3)}, z=${this.raycaster.ray.direction.z.toFixed(3)}`);
+        
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
+        
+        console.log(`🔍 [RAYCAST] intersects.length:`, intersects.length);
+        if (intersects.length > 0) {
+            console.log(`🔍 [RAYCAST] First intersection point:`, intersects[0].point);
+        }
         
         if (intersects.length > 0) {
             const point = intersects[0].point;
@@ -677,6 +711,8 @@ class MundoKnifeGame3D {
                     targetZ: point.z
                 });
             }
+        } else {
+            console.log(`❌ [RAYCAST] No intersection with invisibleGround!`);
         }
     }
 
