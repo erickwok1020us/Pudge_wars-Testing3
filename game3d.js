@@ -305,13 +305,13 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (Math.abs(x) > 45 || Math.abs(z) > 36) {
+        if (Math.abs(x) > 85 || Math.abs(z) > 68) {
             console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 80) {
+        if (cornerDistance > 115) {
             console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
