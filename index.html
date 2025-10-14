@@ -841,6 +841,12 @@
         }
         
         window.addEventListener('DOMContentLoaded', () => {
+            // Prevent browser's native context menu from intercepting right-click events
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            }, { capture: true });
+            
             // Try to unmute immediately (will likely fail due to browser policy)
             tryUnmuteAudio();
             
@@ -1100,6 +1106,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-    <script src="game3d.js?v=191"></script>
+    <script src="game3d.js?v=196"></script>
 </body>
 </html>

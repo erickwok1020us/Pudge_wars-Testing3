@@ -289,22 +289,27 @@ class MundoKnifeGame3D {
 
     isWithinMapBounds(x, z, player) {
         if (Math.abs(x) < 10) {
+            console.log('🚫 [BOUNDS] Blocked by river middle');
             return false;
         }
         
         if (player === this.player1 && x > -10) {
+            console.log('🚫 [BOUNDS] Player1 blocked from crossing to right side');
             return false;
         }
         if (player === this.player2 && x < 10) {
+            console.log('🚫 [BOUNDS] Player2 blocked from crossing to left side');
             return false;
         }
         
-        if (Math.abs(x) > 100 || Math.abs(z) > 70) {
+        if (Math.abs(x) > 65 || Math.abs(z) > 55) {
+            console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 140) {
+        if (cornerDistance > 90) {
+            console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
         
@@ -435,9 +440,6 @@ class MundoKnifeGame3D {
             this.knifeSpawnHeight = modelHeight;
             this.actualModelHeight = modelHeight;
             this.characterSize = modelHeight;
-            console.log('✓ Calculated character height from model:', modelHeight);
-            console.log('✓ Updated characterSize to match actual model');
-            console.log('✓ Will use for knife spawn and camera positioning');
         }
         
         const groundY = this.groundSurfaceY || 0;
@@ -660,7 +662,6 @@ class MundoKnifeGame3D {
                 return;
             }
             
-            console.log('🖱️ [MOVEMENT] Setting movement target:', point.x, point.z);
             this.player1.targetX = point.x;
             this.player1.targetZ = point.z;
             this.player1.isMoving = true;
@@ -672,8 +673,6 @@ class MundoKnifeGame3D {
                     targetZ: point.z
                 });
             }
-        } else {
-            console.log('🖱️ [MOVEMENT] BLOCKED - no raycaster intersections');
         }
     }
 
@@ -944,14 +943,10 @@ class MundoKnifeGame3D {
     }
 
     updatePlayerMovement(player, dt) {
-        const playerName = player === this.player1 ? 'Player1' : 'Player2';
-        
         if (player.isMoving && player.targetX !== null && player.targetZ !== null) {
             const dx = player.targetX - player.x;
             const dz = player.targetZ - player.z;
             const distance = Math.sqrt(dx * dx + dz * dz);
-            
-            console.log(`🚶 [UPDATE] ${playerName} moving: distance=${distance.toFixed(2)}, from=(${player.x.toFixed(2)},${player.z.toFixed(2)}) to target=(${player.targetX.toFixed(2)},${player.targetZ.toFixed(2)}), countdownActive=${this.gameState.countdownActive}`);
             
             if (distance > 1) {
                 const newX = player.x + (dx / distance) * player.moveSpeed;
@@ -963,10 +958,7 @@ class MundoKnifeGame3D {
                 
                 const angle = Math.atan2(dz, dx);
                 player.rotation = -angle + Math.PI / 2;
-                
-                console.log(`🚶 [UPDATE] ${playerName} moved to: (${player.x.toFixed(2)},${player.z.toFixed(2)})`);
             } else {
-                console.log(`🎯 [UPDATE] ${playerName} REACHED target, clearing movement state`);
                 player.isMoving = false;
                 player.targetX = null;
                 player.targetZ = null;
@@ -977,8 +969,6 @@ class MundoKnifeGame3D {
                 player.mesh.position.y = groundY;
                 player.y = groundY;
             }
-        } else if (player === this.player1) {
-            console.log(`⏸️ [UPDATE] ${playerName} NOT moving: isMoving=${player.isMoving}, targetX=${player.targetX}, targetZ=${player.targetZ}`);
         }
     }
 
@@ -1063,6 +1053,8 @@ class MundoKnifeGame3D {
             );
             
             if (distance < this.characterSize * 1.05) {
+                console.log(`💥 [HIT] Knife hit ${target === this.player1 ? 'Player1' : 'Player2'}! Health before: ${target.health}`);
+                
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
                 if (knife.audio) {
@@ -1076,12 +1068,15 @@ class MundoKnifeGame3D {
                 }
                 
                 target.health--;
+                console.log(`💔 [HEALTH] ${target === this.player1 ? 'Player1' : 'Player2'} health after hit: ${target.health}/${target.maxHealth}`);
+                
                 this.updateHealthDisplay();
                 
                 this.disposeKnife(knife);
                 this.knives.splice(knifeIndex, 1);
                 
                 if (target.health <= 0) {
+                    console.log(`☠️ [DEATH] ${target === this.player1 ? 'Player1' : 'Player2'} has died`);
                     this.handlePlayerDeath(target === this.player1 ? 1 : 2);
                 }
                 
@@ -1271,7 +1266,6 @@ class MundoKnifeGame3D {
 
     startCountdown() {
         this.gameState.countdownActive = true;
-        console.log(`⏰ [COUNTDOWN] Starting countdown, aiCanAttack=${this.player2.aiCanAttack}`);
         
         this.previousState = this.cloneGameState();
         this.currentState = this.cloneGameState();
@@ -1311,14 +1305,12 @@ class MundoKnifeGame3D {
                 this.player2.knifeCooldown = 2200;
                 
                 setTimeout(() => {
-                    console.log(`⏰ [COUNTDOWN] Countdown ended, setting isRunning=true, countdownActive=false, aiCanAttack=true`);
                     countdownOverlay.style.display = 'none';
                     this.gameState.countdownActive = false;
                     this.gameState.isRunning = true;
                     this.gameState.gameStarted = true;
                     this.player1.canAttack = true;
                     this.player2.aiCanAttack = true;
-                    console.log(`⏰ [COUNTDOWN] State after update: isRunning=${this.gameState.isRunning}, countdownActive=${this.gameState.countdownActive}, aiCanAttack=${this.player2.aiCanAttack}`);
                 }, 500);
                 clearInterval(countdownInterval);
             }
@@ -1422,8 +1414,6 @@ class MundoKnifeGame3D {
         
         const meshX = this.previousState.player1.x * (1 - alpha) + this.currentState.player1.x * alpha;
         const meshZ = this.previousState.player1.z * (1 - alpha) + this.currentState.player1.z * alpha;
-        
-        console.log(`🎨 [INTERPOLATE] Player1 mesh: (${meshX.toFixed(2)},${meshZ.toFixed(2)}), prev=(${this.previousState.player1.x.toFixed(2)},${this.previousState.player1.z.toFixed(2)}), curr=(${this.currentState.player1.x.toFixed(2)},${this.currentState.player1.z.toFixed(2)}), alpha=${alpha.toFixed(2)}, countdownActive=${this.gameState.countdownActive}`);
         
         this.player1.mesh.position.x = meshX;
         this.player1.mesh.position.z = meshZ;
