@@ -151,6 +151,7 @@ class MundoKnifeGame3D {
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = false;
+        this.canvas = this.renderer.domElement;
         this.container.appendChild(this.renderer.domElement);
         
         this.setupLighting();
@@ -211,7 +212,7 @@ class MundoKnifeGame3D {
             
             this.groundSurfaceY = scaledBox.max.y;
             
-            const invisibleGroundGeometry = new THREE.PlaneGeometry(400, 400);
+            const invisibleGroundGeometry = new THREE.PlaneGeometry(scaledSize.x, scaledSize.z);
             const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0x000000, 
                 transparent: true, 
@@ -219,6 +220,7 @@ class MundoKnifeGame3D {
             });
             this.invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
             this.invisibleGround.rotation.x = -Math.PI / 2;
+            this.invisibleGround.rotation.y = Math.PI / 2;
             this.invisibleGround.position.y = this.groundSurfaceY;
             this.scene.add(this.invisibleGround);
             
@@ -302,13 +304,13 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (Math.abs(x) > 65 || Math.abs(z) > 55) {
+        if (Math.abs(x) > 45 || Math.abs(z) > 36) {
             console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 90) {
+        if (cornerDistance > 62) {
             console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
@@ -656,6 +658,8 @@ class MundoKnifeGame3D {
         if (intersects.length > 0) {
             const point = intersects[0].point;
             
+            console.log(`🎯 [CLICK] Screen(${event.clientX}, ${event.clientY}) → World(x=${point.x.toFixed(1)}, z=${point.z.toFixed(1)})`);
+            
             const boundsCheck = this.isWithinMapBounds(point.x, point.z, this.player1);
             
             if (!boundsCheck) {
@@ -728,7 +732,7 @@ class MundoKnifeGame3D {
             return;
         }
         
-        if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
+        if (false && !this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
             let targetX = this.player1.x;
             let targetZ = this.player1.z;
             
