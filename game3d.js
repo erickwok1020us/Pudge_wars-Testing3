@@ -289,31 +289,25 @@ class MundoKnifeGame3D {
 
     isWithinMapBounds(x, z, player) {
         if (Math.abs(x) < 10) {
-            console.log('🚫 [BOUNDS] Blocked by river (|x| < 10)');
             return false;
         }
         
         if (player === this.player1 && x > -10) {
-            console.log('🚫 [BOUNDS] Blocked by player1 crossing to right side');
             return false;
         }
         if (player === this.player2 && x < 10) {
-            console.log('🚫 [BOUNDS] Blocked by player2 crossing to left side');
             return false;
         }
         
-        if (Math.abs(x) > 160 || Math.abs(z) > 80) {
-            console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
+        if (Math.abs(x) > 100 || Math.abs(z) > 70) {
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 200) {
-            console.log('🚫 [BOUNDS] Blocked by octagonal corner');
+        if (cornerDistance > 140) {
             return false;
         }
         
-        console.log('✅ [BOUNDS] Within bounds');
         return true;
     }
 
@@ -343,8 +337,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player1.x,
             y: 0,
             z: spawnPositions.player1.z,
-            health: 500,
-            maxHealth: 500,
+            health: 5,
+            maxHealth: 5,
             color: 0x9370DB,
             facing: spawnPositions.player1.facing,
             rotation: 0,
@@ -367,8 +361,8 @@ class MundoKnifeGame3D {
             x: spawnPositions.player2.x,
             y: 0,
             z: spawnPositions.player2.z,
-            health: 500,
-            maxHealth: 500,
+            health: 5,
+            maxHealth: 5,
             color: 0x9370DB,
             facing: spawnPositions.player2.facing,
             rotation: 0,
@@ -601,11 +595,7 @@ class MundoKnifeGame3D {
     }
 
     setupEventListeners() {
-        let contextmenuEventCount = 0;
-        
         this.renderer.domElement.addEventListener('contextmenu', (e) => {
-            contextmenuEventCount++;
-            console.log(`🔍 [EVENT #${contextmenuEventCount}] Contextmenu fired at (${e.clientX}, ${e.clientY}), countdown=${this.gameState?.countdownActive}, running=${this.gameState?.isRunning}`);
             e.preventDefault();
             e.stopPropagation();
             this.handlePlayerMovement(e);
@@ -653,8 +643,6 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
-        console.log('🖱️ [MOVEMENT] handlePlayerMovement called, countdownActive:', this.gameState.countdownActive);
-        
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
@@ -663,17 +651,12 @@ class MundoKnifeGame3D {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
         
-        console.log('🖱️ [MOVEMENT] Raycaster intersects:', intersects.length);
-        
         if (intersects.length > 0) {
             const point = intersects[0].point;
-            console.log('🖱️ [MOVEMENT] Intersection point:', point.x, point.z);
             
             const boundsCheck = this.isWithinMapBounds(point.x, point.z, this.player1);
-            console.log('🖱️ [MOVEMENT] isWithinMapBounds result:', boundsCheck);
             
             if (!boundsCheck) {
-                console.log('🖱️ [MOVEMENT] BLOCKED by bounds check');
                 return;
             }
             
