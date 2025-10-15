@@ -305,7 +305,7 @@ class MundoKnifeGame3D {
             return false;
         }
         
-        if (Math.abs(x) > 85 || Math.abs(z) > 68) {
+        if (Math.abs(x) > 80 || Math.abs(z) > 68) {
             console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
             return false;
         }
@@ -604,14 +604,17 @@ class MundoKnifeGame3D {
         console.log('🔧 [SETUP] renderer:', this.renderer);
         console.log('🔧 [SETUP] renderer.domElement:', this.renderer.domElement);
         
-        this.renderer.domElement.addEventListener('contextmenu', (e) => {
-            console.log('🔥 [EVENT] contextmenu event fired!', e);
+        document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
+        }, true);
+        
+        this.renderer.domElement.addEventListener('contextmenu', (e) => {
+            console.log('🔥 [EVENT] contextmenu event fired!', e);
             this.handlePlayerMovement(e);
         }, true);
         
-        console.log('🔧 [SETUP] contextmenu listener attached to canvas');
+        console.log('🔧 [SETUP] contextmenu listener attached to canvas and document');
         
         document.addEventListener('keydown', (e) => {
             this.keys[e.key.toLowerCase()] = true;
