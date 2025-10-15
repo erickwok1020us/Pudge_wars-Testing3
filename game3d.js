@@ -291,16 +291,16 @@ class MundoKnifeGame3D {
     }
 
     isWithinMapBounds(x, z, player) {
-        if (Math.abs(x) < 10) {
-            console.log('🚫 [BOUNDS] Blocked by river middle');
+        if (Math.abs(x) < 18) {
+            console.log('🚫 [BOUNDS] Blocked by river zone');
             return false;
         }
         
-        if (player === this.player1 && x > -10) {
+        if (player === this.player1 && x > -18) {
             console.log('🚫 [BOUNDS] Player1 blocked from crossing to right side');
             return false;
         }
-        if (player === this.player2 && x < 10) {
+        if (player === this.player2 && x < 18) {
             console.log('🚫 [BOUNDS] Player2 blocked from crossing to left side');
             return false;
         }
@@ -311,7 +311,7 @@ class MundoKnifeGame3D {
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
-        if (cornerDistance > 115) {
+        if (cornerDistance > 120) {
             console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
@@ -768,7 +768,7 @@ class MundoKnifeGame3D {
             return;
         }
         
-        if (false && !this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
+        if (!this.isMultiplayer && this.player2.aiCanAttack && now - this.player2.lastKnifeTime >= this.player2.knifeCooldown) {
             let targetX = this.player1.x;
             let targetZ = this.player1.z;
             
@@ -1036,7 +1036,6 @@ class MundoKnifeGame3D {
 
     disposeKnife(knife) {
         if (knife.audio) {
-            knife.audio.pause();
             knife.audio = null;
         }
         
@@ -1096,10 +1095,6 @@ class MundoKnifeGame3D {
                 console.log(`💥 [HIT] Knife hit ${target === this.player1 ? 'Player1' : 'Player2'}! Health before: ${target.health}`);
                 
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
-                
-                if (knife.audio) {
-                    knife.audio.pause();
-                }
                 
                 const hitSound = document.getElementById('hitSound');
                 if (hitSound) {
