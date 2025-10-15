@@ -605,12 +605,16 @@ class MundoKnifeGame3D {
         console.log('🔧 [SETUP] renderer.domElement:', this.renderer.domElement);
         
         document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            if (e.target !== this.renderer.domElement) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
         }, true);
         
         this.renderer.domElement.addEventListener('contextmenu', (e) => {
             console.log('🔥 [EVENT] contextmenu event fired!', e);
+            e.preventDefault();
+            e.stopPropagation();
             this.handlePlayerMovement(e);
         }, true);
         
