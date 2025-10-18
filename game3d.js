@@ -11,6 +11,15 @@ class MundoKnifeGame3D {
         this.currentState = null;
         this.previousState = null;
         
+        this.eventListeners = {
+            documentContextMenu: null,
+            canvasContextMenu: null,
+            keydown: null,
+            keyup: null,
+            mousemove: null,
+            resize: null
+        };
+        
         this.loadingProgress = {
             total: 4,
             loaded: 0,
@@ -156,8 +165,6 @@ class MundoKnifeGame3D {
         
         this.setupLighting();
         this.setupTerrain();
-        
-        window.addEventListener('resize', () => this.onWindowResize());
     }
 
     setupLighting() {
@@ -604,23 +611,25 @@ class MundoKnifeGame3D {
         console.log('🔧 [SETUP] renderer:', this.renderer);
         console.log('🔧 [SETUP] renderer.domElement:', this.renderer.domElement);
         
-        document.addEventListener('contextmenu', (e) => {
+        this.eventListeners.documentContextMenu = (e) => {
             if (e.target !== this.renderer.domElement) {
                 e.preventDefault();
                 e.stopPropagation();
             }
-        }, true);
+        };
+        document.addEventListener('contextmenu', this.eventListeners.documentContextMenu, true);
         
-        this.renderer.domElement.addEventListener('contextmenu', (e) => {
+        this.eventListeners.canvasContextMenu = (e) => {
             console.log('🔥 [EVENT] contextmenu event fired!', e);
             e.preventDefault();
             e.stopPropagation();
             this.handlePlayerMovement(e);
-        }, true);
+        };
+        this.renderer.domElement.addEventListener('contextmenu', this.eventListeners.canvasContextMenu, true);
         
         console.log('🔧 [SETUP] contextmenu listener attached to canvas and document');
         
-        document.addEventListener('keydown', (e) => {
+        this.eventListeners.keydown = (e) => {
             this.keys[e.key.toLowerCase()] = true;
             if (e.key.toLowerCase() === 'q') {
                 this.throwKnifeTowardsMouse();
@@ -634,13 +643,15 @@ class MundoKnifeGame3D {
                     startPractice();
                 }
             }
-        });
+        };
+        document.addEventListener('keydown', this.eventListeners.keydown);
 
-        document.addEventListener('keyup', (e) => {
+        this.eventListeners.keyup = (e) => {
             this.keys[e.key.toLowerCase()] = false;
-        });
+        };
+        document.addEventListener('keyup', this.eventListeners.keyup);
 
-        document.addEventListener('mousemove', (e) => {
+        this.eventListeners.mousemove = (e) => {
             this.lastMouseClientX = e.clientX;
             this.lastMouseClientY = e.clientY;
             
@@ -658,7 +669,11 @@ class MundoKnifeGame3D {
             const cursor = document.getElementById('customCursor');
             cursor.style.left = e.clientX + 'px';
             cursor.style.top = e.clientY + 'px';
-        });
+        };
+        document.addEventListener('mousemove', this.eventListeners.mousemove);
+        
+        this.eventListeners.resize = () => this.onWindowResize();
+        window.addEventListener('resize', this.eventListeners.resize);
     }
 
     handlePlayerMovement(event) {
@@ -983,9 +998,11 @@ class MundoKnifeGame3D {
             const potentialX = this.player2.x + (Math.random() - 0.5) * 30;
             const potentialZ = this.player2.z + (Math.random() - 0.5) * 30;
             
-            this.player2.targetX = Math.max(15, Math.min(95, potentialX));
-            this.player2.targetZ = Math.max(-70, Math.min(70, potentialZ));
-            this.player2.isMoving = true;
+            if (this.isWithinMapBounds(potentialX, potentialZ, this.player2)) {
+                this.player2.targetX = potentialX;
+                this.player2.targetZ = potentialZ;
+                this.player2.isMoving = true;
+            }
         }
     }
 
@@ -1529,6 +1546,31 @@ class MundoKnifeGame3D {
     dispose() {
         this.gameState.isRunning = false;
         this.stopLatencyMeasurement();
+        
+        if (this.eventListeners.documentContextMenu) {
+            document.removeEventListener('contextmenu', this.eventListeners.documentContextMenu, true);
+        }
+        if (this.eventListeners.keydown) {
+            document.removeEventListener('keydown', this.eventListeners.keydown);
+        }
+        if (this.eventListeners.keyup) {
+            document.removeEventListener('keyup', this.eventListeners.keyup);
+        }
+        if (this.eventListeners.mousemove) {
+            document.removeEventListener('mousemove', this.eventListeners.mousemove);
+        }
+        if (this.eventListeners.resize) {
+            window.removeEventListener('resize', this.eventListeners.resize);
+        }
+        if (this.renderer && this.renderer.domElement && this.eventListeners.canvasContextMenu) {
+            this.renderer.domElement.removeEventListener('contextmenu', this.eventListeners.canvasContextMenu, true);
+        }
+        
+        if (this.loadingTimeout) {
+            clearTimeout(this.loadingTimeout);
+        }
+        
+        this.hideLoadingOverlay();
         
         if (this.player1 && this.player1.mixer) {
             this.player1.mixer.stopAllAction();
