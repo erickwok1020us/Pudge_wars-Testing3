@@ -1,15 +1,198 @@
 const CDN_BASE_URL = 'https://pub-2d994ab822d5426bad338ecb218683d8.r2.dev';
 
+let preloadedAssets = {
+    characterModel: null,
+    animations: {},
+    scene: null,
+    renderer: null,
+    camera: null,
+    terrain: null,
+    lights: [],
+    isLoaded: false,
+    isLoading: false
+};
+
+function updateInitialLoadingProgress(progress, text, detail = '') {
+    const bar = document.getElementById('initialLoadingBar');
+    const textEl = document.getElementById('initialLoadingText');
+    const detailEl = document.getElementById('initialLoadingDetail');
+    
+    if (bar) bar.style.width = `${progress}%`;
+    if (textEl) textEl.textContent = text;
+    if (detailEl) detailEl.textContent = detail;
+}
+
+async function preloadGameAssets() {
+    if (preloadedAssets.isLoaded || preloadedAssets.isLoading) {
+        return preloadedAssets;
+    }
+    
+    preloadedAssets.isLoading = true;
+    console.log('Starting parallel asset preload...');
+    const startTime = performance.now();
+    
+    try {
+        updateInitialLoadingProgress(0, 'Loading character animations...', 'Downloading FBX files...');
+        
+        const loader = new THREE.FBXLoader();
+        const animationFiles = {
+            idle: `${CDN_BASE_URL}/Animation_Idle_frame_rate_60.fbx`,
+            run: `${CDN_BASE_URL}/Animation_Run_60.fbx`,
+            death: `${CDN_BASE_URL}/Animation_Death_60.fbx`
+        };
+        
+        let loadedCount = 0;
+        const totalFiles = Object.keys(animationFiles).length;
+        
+        const loadPromises = Object.entries(animationFiles).map(([key, file]) => {
+            return new Promise((resolve, reject) => {
+                loader.load(file, (fbx) => {
+                    if (key === 'idle') {
+                        preloadedAssets.characterModel = fbx;
+                    }
+                    preloadedAssets.animations[key] = fbx.animations[0];
+                    loadedCount++;
+                    const progress = Math.floor((loadedCount / totalFiles) * 60);
+                    updateInitialLoadingProgress(progress, 'Loading character animations...', `Loaded ${key} animation (${loadedCount}/${totalFiles})`);
+                    console.log(`Preloaded: ${key} Animation`);
+                    resolve();
+                }, undefined, reject);
+            });
+        });
+        
+        await Promise.all(loadPromises);
+        
+        updateInitialLoadingProgress(60, 'Initializing 3D engine...', 'Setting up Three.js renderer...');
+        await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI update
+        
+        preloadedAssets.scene = new THREE.Scene();
+        preloadedAssets.scene.background = new THREE.Color(0x000000);
+        
+        preloadedAssets.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance"
+        });
+        preloadedAssets.renderer.setSize(window.innerWidth, window.innerHeight);
+        preloadedAssets.renderer.shadowMap.enabled = false;
+        
+        preloadedAssets.camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        preloadedAssets.camera.position.set(0, 15, 20);
+        preloadedAssets.camera.lookAt(0, 0, 0);
+        
+        console.log('Three.js scene initialized');
+        
+        updateInitialLoadingProgress(70, 'Setting up lighting...', 'Creating ambient and directional lights...');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
+        preloadedAssets.scene.add(ambientLight);
+        preloadedAssets.lights.push(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = false;
+        preloadedAssets.scene.add(directionalLight);
+        preloadedAssets.lights.push(directionalLight);
+        
+        console.log('Lighting setup complete');
+        
+        updateInitialLoadingProgress(80, 'Building game terrain...', 'Loading 3D map model...');
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const gltfLoader = new THREE.GLTFLoader();
+        await new Promise((resolve, reject) => {
+            gltfLoader.load(`${CDN_BASE_URL}/new_map.glb`, (gltf) => {
+                const mapModel = gltf.scene;
+                
+                const box = new THREE.Box3().setFromObject(mapModel);
+                const size = new THREE.Vector3();
+                box.getSize(size);
+                
+                const scaleX = 200 / size.x;
+                const scaleZ = 150 / size.z;
+                const uniformScale = Math.min(scaleX, scaleZ);
+                
+                mapModel.scale.set(uniformScale, uniformScale, uniformScale);
+                mapModel.rotation.y = Math.PI / 2;
+                mapModel.position.y = 0;
+                
+                mapModel.traverse((child) => {
+                    if (child.isMesh) {
+                        if (child.name === 'Mesh_0' && child.material) {
+                            child.material.color.set(0x4db8ff);
+                            child.material.needsUpdate = true;
+                        }
+                    }
+                });
+                
+                preloadedAssets.scene.add(mapModel);
+                
+                const scaledBox = new THREE.Box3().setFromObject(mapModel);
+                const scaledSize = new THREE.Vector3();
+                scaledBox.getSize(scaledSize);
+                
+                const groundSurfaceY = scaledBox.max.y;
+                
+                const invisibleGroundGeometry = new THREE.PlaneGeometry(500, 500);
+                const invisibleGroundMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x000000, 
+                    transparent: true, 
+                    opacity: 0,
+                    side: THREE.DoubleSide
+                });
+                const invisibleGround = new THREE.Mesh(invisibleGroundGeometry, invisibleGroundMaterial);
+                invisibleGround.rotation.x = -Math.PI / 2;
+                invisibleGround.position.y = groundSurfaceY;
+                preloadedAssets.scene.add(invisibleGround);
+                
+                preloadedAssets.terrain = {
+                    ground: mapModel,
+                    invisibleGround: invisibleGround,
+                    groundSurfaceY: groundSurfaceY
+                };
+                
+                console.log('3D map model loaded and added to scene');
+                resolve();
+            }, undefined, (error) => {
+                console.error('Error loading GLB map during preload:', error);
+                reject(error);
+            });
+        });
+        
+        updateInitialLoadingProgress(100, 'Ready to play!', 'All assets loaded successfully');
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        preloadedAssets.isLoaded = true;
+        preloadedAssets.isLoading = false;
+        const loadTime = ((performance.now() - startTime) / 1000).toFixed(2);
+        console.log(`All assets preloaded successfully in ${loadTime}s!`);
+    } catch (error) {
+        console.error('Asset preload failed:', error);
+        preloadedAssets.isLoading = false;
+        updateInitialLoadingProgress(0, 'Loading failed', error.message);
+    }
+    
+    return preloadedAssets;
+}
+
 class MundoKnifeGame3D {
-    constructor(mode = 'practice', isMultiplayer = false, isHostPlayer = false) {
+    constructor(mode = 'practice', isMultiplayer = false, isHostPlayer = false, practiceMode = '1v1') {
         this.gameMode = mode;
         this.isMultiplayer = isMultiplayer;
         this.isHost = isHostPlayer;
+        this.practiceMode = practiceMode;
         this.lastTime = performance.now();
         this.accumulator = 0.0;
         this.fixedDt = this.getPlatformAdjustedTimestep();
         this.currentState = null;
         this.previousState = null;
+        
         
         this.eventListeners = {
             documentContextMenu: null,
@@ -21,9 +204,14 @@ class MundoKnifeGame3D {
         };
         
         this.loadingProgress = {
-            total: 4,
+            total: 1,
             loaded: 0,
             currentAsset: ''
+        };
+        
+        this.fpsData = {
+            frames: 0,
+            lastFpsUpdate: performance.now()
         };
         
         this.showLoadingOverlay();
@@ -32,7 +220,27 @@ class MundoKnifeGame3D {
             this.hideLoadingOverlay();
         }, 15000);
         
-        this.setupThreeJS();
+        if (preloadedAssets.scene && preloadedAssets.renderer && preloadedAssets.camera) {
+            console.log('Using preloaded scene, renderer, and camera');
+            this.scene = preloadedAssets.scene;
+            this.renderer = preloadedAssets.renderer;
+            this.camera = preloadedAssets.camera;
+            
+            const canvas = document.getElementById('gameCanvas');
+            if (canvas && !canvas.firstChild) {
+                canvas.appendChild(this.renderer.domElement);
+            }
+            
+            if (preloadedAssets.terrain) {
+                console.log('Using preloaded terrain');
+                this.ground = preloadedAssets.terrain.ground;
+                this.invisibleGround = preloadedAssets.terrain.invisibleGround;
+                this.groundSurfaceY = preloadedAssets.terrain.groundSurfaceY;
+            }
+        } else {
+            console.log('Preloaded assets not available, creating new scene');
+            this.setupThreeJS();
+        }
         
         this.loadCharacterAnimations().then(() => {
             this.initializeGame();
@@ -43,7 +251,15 @@ class MundoKnifeGame3D {
             if (this.loadingTimeout) {
                 clearTimeout(this.loadingTimeout);
             }
-            this.hideLoadingOverlay();
+            
+            if (this.isMultiplayer && socket && roomCode) {
+                console.log('Emitting playerLoaded event for room:', roomCode);
+                socket.emit('playerLoaded', { roomCode });
+                this.updateLoadingStatus();
+            } else {
+                console.log('Single player mode or missing socket/roomCode, hiding loading overlay');
+                this.hideLoadingOverlay();
+            }
         }).catch(error => {
             console.error('Failed to load character animations:', error);
             console.log('Initializing game with fallback assets...');
@@ -55,7 +271,15 @@ class MundoKnifeGame3D {
             if (this.loadingTimeout) {
                 clearTimeout(this.loadingTimeout);
             }
-            this.hideLoadingOverlay();
+            
+            if (this.isMultiplayer && socket && roomCode) {
+                console.log('Emitting playerLoaded event for room:', roomCode);
+                socket.emit('playerLoaded', { roomCode });
+                this.updateLoadingStatus();
+            } else {
+                console.log('Single player mode or missing socket/roomCode, hiding loading overlay');
+                this.hideLoadingOverlay();
+            }
         });
     }
 
@@ -68,13 +292,53 @@ class MundoKnifeGame3D {
         if (overlay) {
             overlay.style.display = 'flex';
         }
+        
+        if (this.isMultiplayer) {
+            const statusContainer = document.getElementById('playerLoadingStatus');
+            if (statusContainer) {
+                statusContainer.style.display = 'block';
+            }
+        }
     }
 
     hideLoadingOverlay() {
+        console.log('hideLoadingOverlay() called, isMultiplayer:', this.isMultiplayer);
         const overlay = document.getElementById('loadingOverlay');
         if (overlay) {
             overlay.style.display = 'none';
         }
+        
+        const statusContainer = document.getElementById('playerLoadingStatus');
+        if (statusContainer) {
+            statusContainer.style.display = 'none';
+        }
+        
+        const loadingVideo = document.querySelector('#loadingOverlay video');
+        if (loadingVideo) {
+            loadingVideo.pause();
+            loadingVideo.style.display = 'none';
+        }
+        const mainMenuVideo = document.querySelector('.main-menu-video');
+        if (mainMenuVideo) {
+            mainMenuVideo.pause();
+            mainMenuVideo.style.display = 'none';
+        }
+        
+        const gameContainer = document.getElementById('gameContainer');
+        if (gameContainer) {
+            gameContainer.style.display = 'block';
+        }
+        const gameCanvas = document.getElementById('gameCanvas');
+        if (gameCanvas) {
+            gameCanvas.style.display = 'block';
+        }
+    }
+    
+    updateLoadingStatus() {
+        const statusContainer = document.getElementById('playerLoadingStatus');
+        if (!statusContainer) return;
+        
+        statusContainer.style.display = 'block';
     }
 
     updateLoadingProgress(assetName) {
@@ -92,16 +356,33 @@ class MundoKnifeGame3D {
         if (loadingAsset) loadingAsset.textContent = assetName;
         
         if (percentage >= 100) {
-            setTimeout(() => {
-                if (this.loadingTimeout) {
-                    clearTimeout(this.loadingTimeout);
-                }
-                this.hideLoadingOverlay();
-            }, 500);
+            console.log('Loading progress reached 100%');
+            if (!this.isMultiplayer) {
+                console.log('Single player mode, hiding loading overlay in 500ms');
+                setTimeout(() => {
+                    if (this.loadingTimeout) {
+                        clearTimeout(this.loadingTimeout);
+                    }
+                    console.log('Calling hideLoadingOverlay() from updateLoadingProgress');
+                    this.hideLoadingOverlay();
+                }, 500);
+            } else {
+                console.log('Multiplayer mode, NOT hiding loading overlay automatically');
+            }
         }
     }
 
     async loadCharacterAnimations() {
+        if (preloadedAssets.isLoaded) {
+            console.log('Using preloaded assets');
+            this.characterModel = preloadedAssets.characterModel;
+            this.animations = preloadedAssets.animations;
+            this.updateLoadingProgress('Idle Animation');
+            this.updateLoadingProgress('Running Animation');
+            this.updateLoadingProgress('Death Animation');
+            return Promise.resolve();
+        }
+        
         const loader = new THREE.FBXLoader();
         
         const animationFiles = {
@@ -260,7 +541,7 @@ class MundoKnifeGame3D {
 
     generateMissPattern() {
         const missIndices = [];
-        while (missIndices.length < 2) {
+        while (missIndices.length < 4) {
             const randomIndex = Math.floor(Math.random() * 7);
             if (!missIndices.includes(randomIndex)) {
                 missIndices.push(randomIndex);
@@ -270,56 +551,66 @@ class MundoKnifeGame3D {
     }
 
 
-    generateRandomSpawnPositions() {
-        const riverZone = { xMin: -10, xMax: 10 };
+    generateTeamSpawnPositions(mode) {
+        const positions = { team1: [], team2: [] };
         
-        const zBounds = { zMin: -32, zMax: 32 };
+        if (mode === '1v1') {
+            const zBounds = { zMin: -32, zMax: 32 };
+            const player1Bounds = { xMin: -42, xMax: -25 };
+            const player2Bounds = { xMin: 25, xMax: 42 };
+            
+            positions.team1.push({
+                x: Math.random() * (player1Bounds.xMax - player1Bounds.xMin) + player1Bounds.xMin,
+                z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin,
+                facing: 1
+            });
+            
+            positions.team2.push({
+                x: Math.random() * (player2Bounds.xMax - player2Bounds.xMin) + player2Bounds.xMin,
+                z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin,
+                facing: -1
+            });
+        } else if (mode === '3v3') {
+            const team1BaseX = -35;
+            const team2BaseX = 35;
+            const spacing = 15;
+            
+            positions.team1.push(
+                { x: team1BaseX, z: 0, facing: 1 },
+                { x: team1BaseX - 8, z: -spacing, facing: 1 },
+                { x: team1BaseX - 8, z: spacing, facing: 1 }
+            );
+            
+            positions.team2.push(
+                { x: team2BaseX, z: 0, facing: -1 },
+                { x: team2BaseX + 8, z: -spacing, facing: -1 },
+                { x: team2BaseX + 8, z: spacing, facing: -1 }
+            );
+        }
         
-        const player1Bounds = { xMin: -42, xMax: -25 };
-        const player2Bounds = { xMin: 25, xMax: 42 };
-        
-        const player1Pos = {
-            x: Math.random() * (player1Bounds.xMax - player1Bounds.xMin) + player1Bounds.xMin,
-            z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin
-        };
-        
-        const player2Pos = {
-            x: Math.random() * (player2Bounds.xMax - player2Bounds.xMin) + player2Bounds.xMin,
-            z: Math.random() * (zBounds.zMax - zBounds.zMin) + zBounds.zMin
-        };
-        
-        const player1Facing = 1;
-        const player2Facing = -1;
-        
-        return {
-            player1: { x: player1Pos.x, z: player1Pos.z, facing: player1Facing },
-            player2: { x: player2Pos.x, z: player2Pos.z, facing: player2Facing }
-        };
+        return positions;
     }
 
     isWithinMapBounds(x, z, player) {
+        const characterRadius = 6;
+        
         if (Math.abs(x) < 18) {
-            console.log('🚫 [BOUNDS] Blocked by river zone');
             return false;
         }
         
-        if (player === this.player1 && x > -18) {
-            console.log('🚫 [BOUNDS] Player1 blocked from crossing to right side');
+        if (player.team === 1 && x > -18) {
             return false;
         }
-        if (player === this.player2 && x < 18) {
-            console.log('🚫 [BOUNDS] Player2 blocked from crossing to left side');
+        if (player.team === 2 && x < 18) {
             return false;
         }
         
-        if (Math.abs(x) > 80 || Math.abs(z) > 68) {
-            console.log('🚫 [BOUNDS] Blocked by rectangular bounds');
+        if (Math.abs(x) > 80 - characterRadius || Math.abs(z) > 68) {
             return false;
         }
         
         const cornerDistance = Math.abs(x) + Math.abs(z);
         if (cornerDistance > 120) {
-            console.log('🚫 [BOUNDS] Blocked by octagonal corner');
             return false;
         }
         
@@ -341,69 +632,97 @@ class MundoKnifeGame3D {
         };
 
         this.particles = [];
-
         this.characterSize = 10.5;
         this.knifeSpawnHeight = null;
         this.actualModelHeight = null;
         
-        const spawnPositions = this.generateRandomSpawnPositions();
+        const spawnPositions = this.generateTeamSpawnPositions(this.practiceMode);
         
-        this.player1 = {
-            x: spawnPositions.player1.x,
-            y: 0,
-            z: spawnPositions.player1.z,
-            health: 5,
-            maxHealth: 5,
-            color: 0x9370DB,
-            facing: spawnPositions.player1.facing,
-            rotation: 0,
-            isMoving: false,
-            targetX: null,
-            targetZ: null,
-            moveSpeed: 0.39,
-            lastKnifeTime: 0,
-            knifeCooldown: 2200,
-            mesh: null,
-            canAttack: false,
-            isThrowingKnife: false,
-            mixer: null,
-            animations: {},
-            currentAnimation: null,
-            animationState: 'idle'
-        };
+        this.team1 = [];
+        this.team2 = [];
+        
+        spawnPositions.team1.forEach((pos, index) => {
+            const player = {
+                x: pos.x,
+                y: 0,
+                z: pos.z,
+                health: 5,
+                maxHealth: 5,
+                color: 0xFFFFFF,
+                facing: pos.facing,
+                rotation: 0,
+                isMoving: false,
+                targetX: null,
+                targetZ: null,
+                moveSpeed: 0.39,
+                lastKnifeTime: 0,
+                knifeCooldown: 5000,
+                mesh: null,
+                canAttack: index === 0,
+                isThrowingKnife: false,
+                mixer: null,
+                animations: {},
+                currentAnimation: null,
+                animationState: 'idle',
+                isHuman: index === 0,
+                isAI: index !== 0,
+                team: 1,
+                playerIndex: index
+            };
+            
+            if (index !== 0) {
+                player.aiStartDelay = 0;
+                player.aiCanAttack = false;
+                player.throwCount = 0;
+                player.missPattern = this.generateMissPattern();
+            }
+            
+            this.team1.push(player);
+        });
+        
+        spawnPositions.team2.forEach((pos, index) => {
+            const player = {
+                x: pos.x,
+                y: 0,
+                z: pos.z,
+                health: 5,
+                maxHealth: 5,
+                color: 0xFFFFFF,
+                facing: pos.facing,
+                rotation: 0,
+                isMoving: false,
+                targetX: null,
+                targetZ: null,
+                moveSpeed: 0.39,
+                lastKnifeTime: 0,
+                knifeCooldown: 5000,
+                mesh: null,
+                aiStartDelay: 0,
+                aiCanAttack: false,
+                isThrowingKnife: false,
+                mixer: null,
+                animations: {},
+                currentAnimation: null,
+                animationState: 'idle',
+                throwCount: 0,
+                missPattern: this.generateMissPattern(),
+                isHuman: false,
+                isAI: true,
+                team: 2,
+                playerIndex: index
+            };
+            
+            this.team2.push(player);
+        });
 
-        this.player2 = {
-            x: spawnPositions.player2.x,
-            y: 0,
-            z: spawnPositions.player2.z,
-            health: 5,
-            maxHealth: 5,
-            color: 0x9370DB,
-            facing: spawnPositions.player2.facing,
-            rotation: 0,
-            isMoving: false,
-            targetX: null,
-            targetZ: null,
-            moveSpeed: 0.39,
-            lastKnifeTime: 0,
-            knifeCooldown: 2200,
-            mesh: null,
-            aiStartDelay: 0,
-            aiCanAttack: false,
-            isThrowingKnife: false,
-            mixer: null,
-            animations: {},
-            currentAnimation: null,
-            animationState: 'idle',
-            throwCount: 0,
-            missPattern: this.generateMissPattern()
-        };
+        this.player1 = this.team1[0];
+        this.player2 = this.team2[0];
 
         this.knives = [];
         
         this.killCounts = {
-            player1: 0,
-            player2: 0
+            team1: 0,
+            team2: 0
         };
 
         this.keys = {};
@@ -421,12 +740,20 @@ class MundoKnifeGame3D {
         this.mouseWorldX = 0;
         this.mouseWorldZ = 0;
 
-        this.createPlayer3D(this.player1);
-        this.createPlayer3D(this.player2);
+        this.team1.forEach(player => this.createPlayer3D(player));
+        this.team2.forEach(player => this.createPlayer3D(player));
         
         this.setupCamera();
+        this.createHealthBarElements();
         this.updateHealthDisplay();
-        this.startCountdown();
+        
+        if (!this.isMultiplayer) {
+            console.log('Single player mode detected, starting countdown immediately');
+            this.startCountdown();
+        } else {
+            console.log('Multiplayer mode detected, waiting for allPlayersLoaded event');
+        }
+        
         this.startLatencyMeasurement();
     }
 
@@ -457,25 +784,6 @@ class MundoKnifeGame3D {
         player.y = groundY;
         player.mesh.castShadow = false;
         
-        player.mesh.traverse((child) => {
-            if (child.isMesh) {
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            mat.color.set(player.color);
-                            mat.roughness = 0.95;
-                            mat.metalness = 0.05;
-                            mat.needsUpdate = true;
-                        });
-                    } else {
-                        child.material.color.set(player.color);
-                        child.material.roughness = 0.95;
-                        child.material.metalness = 0.05;
-                        child.material.needsUpdate = true;
-                    }
-                }
-            }
-        });
         
         player.mixer = new THREE.AnimationMixer(player.mesh);
         player.currentAnimation = null;
@@ -528,6 +836,31 @@ class MundoKnifeGame3D {
         return null;
     }
 
+    createHealthBarElements() {
+        document.querySelectorAll('.health-bar-3d-dynamic').forEach(el => el.remove());
+        
+        const gameContainer = document.getElementById('gameContainer');
+        
+        [...this.team1, ...this.team2].forEach((player, globalIndex) => {
+            const healthBarId = `healthBar3D_team${player.team}_${player.playerIndex}`;
+            
+            const healthBar = document.createElement('div');
+            healthBar.id = healthBarId;
+            healthBar.className = 'health-bar-3d health-bar-3d-dynamic';
+            healthBar.style.display = 'none';
+            
+            for (let i = 0; i < 5; i++) {
+                const segment = document.createElement('div');
+                segment.className = 'health-segment';
+                healthBar.appendChild(segment);
+            }
+            
+            gameContainer.appendChild(healthBar);
+            
+            player.healthBarElement = healthBar;
+        });
+    }
+
     lightenColor(color, amount) {
         const c = new THREE.Color(color);
         c.r = Math.min(1, c.r + amount);
@@ -554,7 +887,14 @@ class MundoKnifeGame3D {
             }
             
             if (newAnimation) {
-                newAnimation.reset().fadeIn(0.2).play();
+                newAnimation.reset().fadeIn(0.2);
+                
+                if (desiredState === 'death') {
+                    newAnimation.setLoop(THREE.LoopOnce);
+                    newAnimation.clampWhenFinished = true;
+                }
+                
+                newAnimation.play();
                 player.currentAnimation = newAnimation;
             }
             
@@ -607,10 +947,6 @@ class MundoKnifeGame3D {
     }
 
     setupEventListeners() {
-        console.log('🔧 [SETUP] setupEventListeners called');
-        console.log('🔧 [SETUP] renderer:', this.renderer);
-        console.log('🔧 [SETUP] renderer.domElement:', this.renderer.domElement);
-        
         this.eventListeners.documentContextMenu = (e) => {
             if (e.target !== this.renderer.domElement) {
                 e.preventDefault();
@@ -620,14 +956,11 @@ class MundoKnifeGame3D {
         document.addEventListener('contextmenu', this.eventListeners.documentContextMenu, true);
         
         this.eventListeners.canvasContextMenu = (e) => {
-            console.log('🔥 [EVENT] contextmenu event fired!', e);
             e.preventDefault();
             e.stopPropagation();
             this.handlePlayerMovement(e);
         };
         this.renderer.domElement.addEventListener('contextmenu', this.eventListeners.canvasContextMenu, true);
-        
-        console.log('🔧 [SETUP] contextmenu listener attached to canvas and document');
         
         this.eventListeners.keydown = (e) => {
             this.keys[e.key.toLowerCase()] = true;
@@ -677,44 +1010,21 @@ class MundoKnifeGame3D {
     }
 
     handlePlayerMovement(event) {
+        if (this.player1.health <= 0) {
+            return;
+        }
+        
         const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
         const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
         
         this.mouse.x = mouseX;
         this.mouse.y = mouseY;
         
-        console.log(`🖱️ [MOUSE] Screen(${event.clientX}, ${event.clientY}) → NDC(${this.mouse.x.toFixed(3)}, ${this.mouse.y.toFixed(3)})`);
-        console.log(`📷 [CAMERA] position: x=${this.camera.position.x.toFixed(2)}, y=${this.camera.position.y.toFixed(2)}, z=${this.camera.position.z.toFixed(2)}`);
-        console.log(`📷 [CAMERA] rotation: x=${this.camera.rotation.x.toFixed(2)}, y=${this.camera.rotation.y.toFixed(2)}, z=${this.camera.rotation.z.toFixed(2)}`);
-        
-        console.log(`🔍 [RAYCAST] invisibleGround exists:`, !!this.invisibleGround);
-        if (this.invisibleGround) {
-            console.log(`🔍 [RAYCAST] invisibleGround.visible:`, this.invisibleGround.visible);
-            console.log(`🔍 [RAYCAST] invisibleGround.position: x=${this.invisibleGround.position.x.toFixed(2)}, y=${this.invisibleGround.position.y.toFixed(2)}, z=${this.invisibleGround.position.z.toFixed(2)}`);
-            console.log(`🔍 [RAYCAST] invisibleGround.rotation: x=${this.invisibleGround.rotation.x.toFixed(2)}, y=${this.invisibleGround.rotation.y.toFixed(2)}, z=${this.invisibleGround.rotation.z.toFixed(2)}`);
-            console.log(`🔍 [RAYCAST] invisibleGround.scale: x=${this.invisibleGround.scale.x.toFixed(2)}, y=${this.invisibleGround.scale.y.toFixed(2)}, z=${this.invisibleGround.scale.z.toFixed(2)}`);
-            console.log(`🔍 [RAYCAST] invisibleGround.geometry.type:`, this.invisibleGround.geometry.type);
-            if (this.invisibleGround.geometry.parameters) {
-                console.log(`🔍 [RAYCAST] invisibleGround.geometry size: width=${this.invisibleGround.geometry.parameters.width}, height=${this.invisibleGround.geometry.parameters.height}`);
-            }
-            console.log(`🔍 [RAYCAST] invisibleGround.material.side:`, this.invisibleGround.material.side, '(0=Front, 1=Back, 2=Double)');
-        }
-        
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        console.log(`🔍 [RAYCAST] ray.origin: x=${this.raycaster.ray.origin.x.toFixed(2)}, y=${this.raycaster.ray.origin.y.toFixed(2)}, z=${this.raycaster.ray.origin.z.toFixed(2)}`);
-        console.log(`🔍 [RAYCAST] ray.direction: x=${this.raycaster.ray.direction.x.toFixed(3)}, y=${this.raycaster.ray.direction.y.toFixed(3)}, z=${this.raycaster.ray.direction.z.toFixed(3)}`);
-        
         const intersects = this.raycaster.intersectObject(this.invisibleGround);
-        
-        console.log(`🔍 [RAYCAST] intersects.length:`, intersects.length);
-        if (intersects.length > 0) {
-            console.log(`🔍 [RAYCAST] First intersection point:`, intersects[0].point);
-        }
         
         if (intersects.length > 0) {
             const point = intersects[0].point;
-            
-            console.log(`🎯 [CLICK] Screen(${event.clientX}, ${event.clientY}) → World(x=${point.x.toFixed(1)}, z=${point.z.toFixed(1)})`);
             
             const boundsCheck = this.isWithinMapBounds(point.x, point.z, this.player1);
             
@@ -733,12 +1043,14 @@ class MundoKnifeGame3D {
                     targetZ: point.z
                 });
             }
-        } else {
-            console.log(`❌ [RAYCAST] No intersection with invisibleGround!`);
         }
     }
 
     throwKnifeTowardsMouse() {
+        if (this.player1.health <= 0) {
+            return;
+        }
+        
         const now = Date.now();
         
         if (!this.player1.canAttack) {
@@ -800,7 +1112,7 @@ class MundoKnifeGame3D {
                 const distance = Math.sqrt(dx * dx + dz * dz);
                 
                 if (distance > 0.1) {
-                    const predictionTime = 0.5;
+                    const predictionTime = 0.3;
                     const predictedDistance = this.player1.moveSpeed * 60 * predictionTime;
                     const dirX = dx / distance;
                     const dirZ = dz / distance;
@@ -813,8 +1125,8 @@ class MundoKnifeGame3D {
             const shouldMiss = this.player2.missPattern.includes(this.player2.throwCount);
             
             if (shouldMiss) {
-                const largeOffsetX = (Math.random() - 0.5) * 12;
-                const largeOffsetZ = (Math.random() - 0.5) * 12;
+                const largeOffsetX = (Math.random() - 0.5) * 15;
+                const largeOffsetZ = (Math.random() - 0.5) * 15;
                 targetX += largeOffsetX;
                 targetZ += largeOffsetZ;
             } else {
@@ -887,8 +1199,15 @@ class MundoKnifeGame3D {
         knifeGroup.position.set(fromPlayer.x, playerY + spawnHeight, fromPlayer.z);
         knifeGroup.castShadow = true;
         
-        const dx = targetX - fromPlayer.x;
-        const dz = targetZ - fromPlayer.z;
+        let dx = targetX - fromPlayer.x;
+        let dz = targetZ - fromPlayer.z;
+        
+        if (fromPlayer.isAI) {
+            const inaccuracy = 0.40;
+            dx += (Math.random() - 0.5) * inaccuracy * Math.sqrt(dx * dx + dz * dz);
+            dz += (Math.random() - 0.5) * inaccuracy * Math.sqrt(dx * dx + dz * dz);
+        }
+        
         const distanceXZ = Math.sqrt(dx * dx + dz * dz);
         
         const directionXZ = {
@@ -914,6 +1233,7 @@ class MundoKnifeGame3D {
             vx: directionXZ.x * knifeSpeed,
             vz: directionXZ.z * knifeSpeed,
             fromPlayer: fromPlayer === this.player1 ? 1 : 2,
+            thrower: fromPlayer,
             audio: audio
         };
         
@@ -966,8 +1286,8 @@ class MundoKnifeGame3D {
             toPlayer.z - fromPlayer.z
         ).normalize();
         
-        if (fromPlayer === this.player2) {
-            const inaccuracy = 0.26;
+        if (fromPlayer.isAI) {
+            const inaccuracy = 0.40;
             direction.x += (Math.random() - 0.5) * inaccuracy;
             direction.z += (Math.random() - 0.5) * inaccuracy;
             direction.normalize();
@@ -983,7 +1303,8 @@ class MundoKnifeGame3D {
             mesh: knifeGroup,
             vx: direction.x * 4.5864,
             vz: direction.z * 4.5864,
-            fromPlayer: fromPlayer === this.player1 ? 1 : 2
+            fromPlayer: fromPlayer === this.player1 ? 1 : 2,
+            thrower: fromPlayer
         };
         
         this.knives.push(knifeData);
@@ -991,22 +1312,49 @@ class MundoKnifeGame3D {
     }
 
     updatePlayers(dt) {
-        this.updatePlayerMovement(this.player1, dt);
-        this.updatePlayerMovement(this.player2, dt);
+        [...this.team1, ...this.team2].forEach(player => {
+            this.updatePlayerMovement(player, dt);
+        });
         
-        if (!this.isMultiplayer && this.player2.health > 0 && this.gameState.isRunning && !this.player2.isThrowingKnife && Math.random() < 0.06) {
-            const potentialX = this.player2.x + (Math.random() - 0.5) * 30;
-            const potentialZ = this.player2.z + (Math.random() - 0.5) * 30;
+        if (!this.isMultiplayer && this.gameState.isRunning) {
+            const totalAIPlayers = [...this.team1, ...this.team2].filter(p => p.isAI && p.health > 0).length;
+            const baseThrowChance = 0.015;
+            const adjustedThrowChance = totalAIPlayers > 2 ? baseThrowChance / (totalAIPlayers / 2) : baseThrowChance;
             
-            if (this.isWithinMapBounds(potentialX, potentialZ, this.player2)) {
-                this.player2.targetX = potentialX;
-                this.player2.targetZ = potentialZ;
-                this.player2.isMoving = true;
-            }
+            [...this.team1, ...this.team2].forEach(player => {
+                if (!player.isAI || player.health <= 0 || player.isThrowingKnife) return;
+                
+                if (Math.random() < 0.10) {
+                    const potentialX = player.x + (Math.random() - 0.5) * 30;
+                    const potentialZ = player.z + (Math.random() - 0.5) * 30;
+                    
+                    if (this.isWithinMapBounds(potentialX, potentialZ, player)) {
+                        player.targetX = potentialX;
+                        player.targetZ = potentialZ;
+                        player.isMoving = true;
+                    }
+                }
+                
+                if (Math.random() < adjustedThrowChance && Date.now() - player.lastKnifeTime > player.knifeCooldown) {
+                    const enemyTeam = player.team === 1 ? this.team2 : this.team1;
+                    const aliveEnemies = enemyTeam.filter(e => e.health > 0);
+                    
+                    if (aliveEnemies.length > 0) {
+                        const randomEnemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+                        this.createKnife3DTowards(player, randomEnemy.x, randomEnemy.z, randomEnemy);
+                        player.lastKnifeTime = Date.now();
+                    }
+                }
+            });
         }
     }
 
     updatePlayerMovement(player, dt) {
+        if (player.health <= 0) {
+            player.isMoving = false;
+            return;
+        }
+        
         if (player.isMoving && player.targetX !== null && player.targetZ !== null) {
             const dx = player.targetX - player.x;
             const dz = player.targetZ - player.z;
@@ -1103,9 +1451,10 @@ class MundoKnifeGame3D {
     checkKnifeCollisions(knife, knifeIndex) {
         const knifePos = knife.mesh.position;
         
-        const targets = knife.fromPlayer === 1 ? [this.player2] : [this.player1];
+        const thrower = knife.thrower;
+        const targetTeam = thrower.team === 1 ? this.team2 : this.team1;
         
-        targets.forEach(target => {
+        targetTeam.forEach(target => {
             if (target.health <= 0) return;
             
             const targetPos = target.mesh ? target.mesh.position : { x: target.x, y: target.y, z: target.z };
@@ -1116,7 +1465,7 @@ class MundoKnifeGame3D {
             );
             
             if (distance < this.characterSize * 1.05) {
-                console.log(`💥 [HIT] Knife hit ${target === this.player1 ? 'Player1' : 'Player2'}! Health before: ${target.health}`);
+                console.log(`💥 [HIT] Knife hit Team${target.team} Player${target.playerIndex}! Health before: ${target.health}`);
                 
                 this.createBloodEffect(targetPos.x, targetPos.y, targetPos.z);
                 
@@ -1127,7 +1476,7 @@ class MundoKnifeGame3D {
                 }
                 
                 target.health--;
-                console.log(`💔 [HEALTH] ${target === this.player1 ? 'Player1' : 'Player2'} health after hit: ${target.health}/${target.maxHealth}`);
+                console.log(`💔 [HEALTH] Team${target.team} Player${target.playerIndex} health after hit: ${target.health}/${target.maxHealth}`);
                 
                 this.updateHealthDisplay();
                 
@@ -1135,14 +1484,14 @@ class MundoKnifeGame3D {
                 this.knives.splice(knifeIndex, 1);
                 
                 if (target.health <= 0) {
-                    console.log(`☠️ [DEATH] ${target === this.player1 ? 'Player1' : 'Player2'} has died`);
-                    this.handlePlayerDeath(target === this.player1 ? 1 : 2);
+                    console.log(`☠️ [DEATH] Team${target.team} Player${target.playerIndex} has died`);
+                    this.handlePlayerDeath(target);
                 }
                 
                 if (this.isMultiplayer && socket) {
                     socket.emit('healthUpdate', {
                         roomCode: roomCode,
-                        playerId: target === this.player1 ? 1 : 2,
+                        playerId: target.team === 1 ? 1 : 2,
                         health: target.health
                     });
                 }
@@ -1181,22 +1530,31 @@ class MundoKnifeGame3D {
         }
     }
 
-    handlePlayerDeath(deadPlayerId) {
-        const winnerId = deadPlayerId === 1 ? 2 : 1;
+    handlePlayerDeath(player) {
+        console.log(`☠️ [DEATH] Team${player.team} Player${player.playerIndex} died`);
         
-        if (winnerId === 1) {
-            this.killCounts.player1++;
-        } else {
-            this.killCounts.player2++;
+        const team = player.team === 1 ? this.team1 : this.team2;
+        const aliveCount = team.filter(p => p.health > 0).length;
+        
+        if (aliveCount === 0) {
+            const winnerId = player.team === 1 ? 2 : 1;
+            this.endGame(winnerId);
         }
-        
-        this.updateKillCountDisplay();
-        this.endGame(winnerId);
     }
 
     endGame(winnerId) {
+        console.log(`🏁 [GAME END] Team ${winnerId} wins!`);
+        
         this.gameState.isRunning = false;
         this.gameState.winner = winnerId;
+        
+        if (winnerId === 1) {
+            this.killCounts.team1++;
+        } else {
+            this.killCounts.team2++;
+        }
+        
+        this.updateKillCountDisplay();
         
         if (winnerId === 1) {
             const victorySound = document.getElementById('victorySound');
@@ -1223,70 +1581,74 @@ class MundoKnifeGame3D {
             message.textContent = winnerId === 1 ? 'Victory!' : 'Defeated!';
         }
         overlay.style.display = 'flex';
-        overlay.style.background = 'rgba(0, 0, 0, 0.8)';
+        overlay.style.background = 'transparent';
         
-        const buttons = overlay.querySelectorAll('.restart-btn'); // (important-comment)
-        buttons.forEach(btn => btn.style.display = 'block'); // (important-comment)
+        const buttons = overlay.querySelectorAll('.restart-btn');
+        buttons.forEach(btn => {
+            if (this.isMultiplayer && btn.textContent.includes('Play Again')) {
+                btn.style.display = 'none';
+            } else {
+                btn.style.display = 'block';
+            }
+        });
     }
 
     updateHealthDisplay() {
-        const player1Hearts = document.getElementById('player1Health').children;
-        const player2Hearts = document.getElementById('player2Health').children;
+        const player1Hearts = document.getElementById('player1Health')?.children;
+        const player2Hearts = document.getElementById('player2Health')?.children;
         
-        for (let i = 0; i < 5; i++) {
-            player1Hearts[i].classList.toggle('empty', i >= this.player1.health);
-            player2Hearts[i].classList.toggle('empty', i >= this.player2.health);
+        if (player1Hearts && this.team1[0]) {
+            for (let i = 0; i < 5; i++) {
+                player1Hearts[i].classList.toggle('empty', i >= this.team1[0].health);
+            }
         }
         
-        const player1Bar = document.getElementById('player1HealthBar3D');
-        const player2Bar = document.getElementById('player2HealthBar3D');
-        
-        if (player1Bar && this.player1.mesh) {
-            player1Bar.style.display = 'flex';
-            const segments = player1Bar.children;
+        if (player2Hearts && this.team2[0]) {
             for (let i = 0; i < 5; i++) {
-                segments[i].classList.toggle('lost', i >= this.player1.health);
+                player2Hearts[i].classList.toggle('empty', i >= this.team2[0].health);
+            }
+        }
+        
+        [...this.team1, ...this.team2].forEach(player => {
+            if (!player.healthBarElement || !player.mesh) return;
+            
+            const healthBar = player.healthBarElement;
+            
+            if (player.health <= 0) {
+                healthBar.style.opacity = '0';
+                healthBar.style.pointerEvents = 'none';
+                return;
+            }
+            
+            healthBar.style.display = 'flex';
+            healthBar.style.opacity = '1';
+            healthBar.style.pointerEvents = 'auto';
+            
+            const segments = healthBar.children;
+            for (let i = 0; i < 5; i++) {
+                segments[i].classList.toggle('lost', i >= player.health);
             }
             
             const pos = new THREE.Vector3(
-                this.player1.x,
-                this.player1.y + this.characterSize * 1.95,
-                this.player1.z
+                player.x,
+                player.y + this.characterSize * 1.95,
+                player.z
             );
             pos.project(this.camera);
             
             const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
             
-            player1Bar.style.left = (x - 43) + 'px';
-            player1Bar.style.top = (y - 10) + 'px';
-        }
-        
-        if (player2Bar && this.player2.mesh) {
-            player2Bar.style.display = 'flex';
-            const segments = player2Bar.children;
-            for (let i = 0; i < 5; i++) {
-                segments[i].classList.toggle('lost', i >= this.player2.health);
-            }
-            
-            const pos = new THREE.Vector3(
-                this.player2.x,
-                this.player2.y + this.characterSize * 1.95,
-                this.player2.z
-            );
-            pos.project(this.camera);
-            
-            const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
-            const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
-            
-            player2Bar.style.left = (x - 43) + 'px';
-            player2Bar.style.top = (y - 10) + 'px';
-        }
+            healthBar.style.left = (x - 43) + 'px';
+            healthBar.style.top = (y - 10) + 'px';
+        });
     }
 
     updateKillCountDisplay() {
-        document.getElementById('player1Kills').textContent = this.killCounts.player1;
-        document.getElementById('player2Kills').textContent = this.killCounts.player2;
+        const player1Kills = document.getElementById('player1Kills');
+        const player2Kills = document.getElementById('player2Kills');
+        if (player1Kills) player1Kills.textContent = this.killCounts.player1;
+        if (player2Kills) player2Kills.textContent = this.killCounts.player2;
     }
 
     updateCooldownDisplay() {
@@ -1334,6 +1696,17 @@ class MundoKnifeGame3D {
         
         countdownOverlay.style.display = 'flex';
         
+        const mainMenuVideo = document.querySelector('.main-menu-video');
+        if (mainMenuVideo) {
+            mainMenuVideo.pause();
+            mainMenuVideo.style.display = 'none';
+        }
+        const loadingVideo = document.querySelector('#loadingOverlay video');
+        if (loadingVideo) {
+            loadingVideo.pause();
+            loadingVideo.style.display = 'none';
+        }
+        
         this.player1.knifeCooldown = 5000;
         this.player2.knifeCooldown = 5000;
         this.player1.lastKnifeTime = Date.now();
@@ -1341,6 +1714,23 @@ class MundoKnifeGame3D {
         
         let count = 5;
         countdownNumber.textContent = count;
+        
+        const aiMovementInterval = setInterval(() => {
+            if (!this.isMultiplayer) {
+                [...this.team1, ...this.team2].forEach(player => {
+                    if (!player.isAI) return;
+                    
+                    const potentialX = player.x + (Math.random() - 0.5) * 60;
+                    const potentialZ = player.z + (Math.random() - 0.5) * 60;
+                    
+                    if (this.isWithinMapBounds(potentialX, potentialZ, player)) {
+                        player.targetX = potentialX;
+                        player.targetZ = potentialZ;
+                        player.isMoving = true;
+                    }
+                });
+            }
+        }, 300);
         
         const countdownInterval = setInterval(() => {
             count--;
@@ -1372,6 +1762,7 @@ class MundoKnifeGame3D {
                     this.player2.aiCanAttack = true;
                 }, 500);
                 clearInterval(countdownInterval);
+                clearInterval(aiMovementInterval);
             }
         }, 1000);
     }
@@ -1398,6 +1789,26 @@ class MundoKnifeGame3D {
             }
             this.updateHealthDisplay();
         });
+        
+        socket.on('playerLoadUpdate', (playerLoadStatus) => {
+            console.log('Received playerLoadUpdate:', playerLoadStatus);
+            const statusContainer = document.getElementById('playerLoadingStatus');
+            if (!statusContainer) return;
+            
+            let statusHTML = '<div style="color: white; font-size: 18px; margin-top: 20px;">Loading Status:</div>';
+            Object.entries(playerLoadStatus).forEach(([playerId, loaded]) => {
+                const status = loaded ? '✓ Loaded' : '⏳ Loading...';
+                const color = loaded ? '#4CAF50' : '#FFA500';
+                statusHTML += `<div style="color: ${color}; font-size: 16px; margin: 5px 0;">Player ${playerId}: ${status}</div>`;
+            });
+            statusContainer.innerHTML = statusHTML;
+        });
+        
+        socket.on('allPlayersLoaded', () => {
+            console.log('All players loaded, starting countdown');
+            this.hideLoadingOverlay();
+            this.startCountdown();
+        });
 
     }
     
@@ -1412,7 +1823,6 @@ class MundoKnifeGame3D {
         
         while (this.accumulator >= this.fixedDt) {
             if (this.gameState.isRunning || this.gameState.countdownActive) {
-                this.previousState = this.cloneGameState();
                 this.updatePlayers(this.fixedDt);
                 this.updateCamera();
                 if (this.gameState.isRunning) {
@@ -1420,44 +1830,59 @@ class MundoKnifeGame3D {
                     this.updateKnives(this.fixedDt);
                     this.updateParticles();
                 }
-                this.currentState = this.cloneGameState();
             }
             this.accumulator -= this.fixedDt;
         }
         
-        if (this.player1 && this.player1.mixer) {
-            this.updatePlayerAnimation(this.player1, frameTime);
-        }
-        if (this.player2 && this.player2.mixer) {
-            this.updatePlayerAnimation(this.player2, frameTime);
-        }
+        [...this.team1, ...this.team2].forEach(player => {
+            if (player && player.mixer) {
+                this.updatePlayerAnimation(player, frameTime);
+            }
+        });
         
-        if ((this.gameState.isRunning || this.gameState.countdownActive) && this.previousState && this.currentState) {
-            const alpha = this.accumulator / this.fixedDt;
-            this.interpolateStates(alpha);
+        if (this.gameState.isRunning || this.gameState.countdownActive) {
+            [...this.team1, ...this.team2].forEach(player => {
+                if (player && player.mesh) {
+                    player.mesh.position.x = player.x;
+                    player.mesh.position.z = player.z;
+                    player.mesh.rotation.y = player.rotation;
+                }
+            });
         }
         
         this.updateCooldownDisplay();
         this.updateHealthDisplay();
         this.renderer.render(this.scene, this.camera);
         
+        this.fpsData.frames++;
+        if (currentTime - this.fpsData.lastFpsUpdate >= 500) {
+            const elapsed = currentTime - this.fpsData.lastFpsUpdate;
+            const fps = Math.round((this.fpsData.frames * 1000) / elapsed);
+            const fpsElement = document.getElementById('fpsValue');
+            if (fpsElement) {
+                fpsElement.textContent = fps;
+            }
+            this.fpsData.frames = 0;
+            this.fpsData.lastFpsUpdate = currentTime;
+        }
+        
         this.gameLoopId = requestAnimationFrame(() => this.gameLoop());
     }
 
     cloneGameState() {
         const state = {
-            player1: {
-                x: this.player1.x,
-                z: this.player1.z,
-                facing: this.player1.facing,
-                rotation: this.player1.rotation
-            },
-            player2: {
-                x: this.player2.x,
-                z: this.player2.z,
-                facing: this.player2.facing,
-                rotation: this.player2.rotation
-            },
+            team1: this.team1.map(p => ({
+                x: p.x,
+                z: p.z,
+                facing: p.facing,
+                rotation: p.rotation
+            })),
+            team2: this.team2.map(p => ({
+                x: p.x,
+                z: p.z,
+                facing: p.facing,
+                rotation: p.rotation
+            })),
             knives: this.knives.map(knife => ({
                 x: knife.mesh.position.x,
                 z: knife.mesh.position.z,
@@ -1468,31 +1893,26 @@ class MundoKnifeGame3D {
     }
     
     interpolateStates(alpha) {
-        const posChanged = Math.abs(this.currentState.player1.x - this.previousState.player1.x) > 0.01 || 
-                          Math.abs(this.currentState.player1.z - this.previousState.player1.z) > 0.01;
-        
-        const meshX = this.previousState.player1.x * (1 - alpha) + this.currentState.player1.x * alpha;
-        const meshZ = this.previousState.player1.z * (1 - alpha) + this.currentState.player1.z * alpha;
-        
-        this.player1.mesh.position.x = meshX;
-        this.player1.mesh.position.z = meshZ;
-        
-        let prevRot1 = this.previousState.player1.rotation;
-        let currRot1 = this.currentState.player1.rotation;
-        let diff1 = currRot1 - prevRot1;
-        if (diff1 > Math.PI) diff1 -= 2 * Math.PI;
-        if (diff1 < -Math.PI) diff1 += 2 * Math.PI;
-        this.player1.mesh.rotation.y = prevRot1 + diff1 * alpha;
-        
-        this.player2.mesh.position.x = this.previousState.player2.x * (1 - alpha) + this.currentState.player2.x * alpha;
-        this.player2.mesh.position.z = this.previousState.player2.z * (1 - alpha) + this.currentState.player2.z * alpha;
-        
-        let prevRot2 = this.previousState.player2.rotation;
-        let currRot2 = this.currentState.player2.rotation;
-        let diff2 = currRot2 - prevRot2;
-        if (diff2 > Math.PI) diff2 -= 2 * Math.PI;
-        if (diff2 < -Math.PI) diff2 += 2 * Math.PI;
-        this.player2.mesh.rotation.y = prevRot2 + diff2 * alpha;
+        [...this.team1, ...this.team2].forEach((player, globalIndex) => {
+            const teamName = player.team === 1 ? 'team1' : 'team2';
+            const currentState = this.currentState[teamName][player.playerIndex];
+            const previousState = this.previousState[teamName][player.playerIndex];
+            
+            const posChanged = Math.abs(currentState.x - previousState.x) > 0.01 || 
+                              Math.abs(currentState.z - previousState.z) > 0.01;
+            
+            if (posChanged && player.mesh) {
+                player.mesh.position.x = previousState.x * (1 - alpha) + currentState.x * alpha;
+                player.mesh.position.z = previousState.z * (1 - alpha) + currentState.z * alpha;
+                
+                let prevRot = previousState.rotation;
+                let currRot = currentState.rotation;
+                let diff = currRot - prevRot;
+                if (diff > Math.PI) diff -= 2 * Math.PI;
+                if (diff < -Math.PI) diff += 2 * Math.PI;
+                player.mesh.rotation.y = prevRot + diff * alpha;
+            }
+        });
         
         for (let i = 0; i < this.knives.length && i < this.previousState.knives.length; i++) {
             const knife = this.knives[i];
@@ -1572,11 +1992,17 @@ class MundoKnifeGame3D {
         
         this.hideLoadingOverlay();
         
-        if (this.player1 && this.player1.mixer) {
-            this.player1.mixer.stopAllAction();
+        if (this.team1) {
+            this.team1.forEach(player => {
+                if (player.mixer) player.mixer.stopAllAction();
+                if (player.mesh) this.scene.remove(player.mesh);
+            });
         }
-        if (this.player2 && this.player2.mixer) {
-            this.player2.mixer.stopAllAction();
+        if (this.team2) {
+            this.team2.forEach(player => {
+                if (player.mixer) player.mixer.stopAllAction();
+                if (player.mesh) this.scene.remove(player.mesh);
+            });
         }
         
         if (this.scene) {
@@ -1614,7 +2040,7 @@ function restartGame() {
         if (currentGame) {
             currentGame.dispose();
         }
-        startPractice();
+        startPractice(practiceMode);
     } else {
         showMainMenu();
     }
@@ -1625,11 +2051,20 @@ function returnToMainMenu() {
     if (currentGame) {
         currentGame.dispose();
     }
+    
+    const mainMenuVideo = document.querySelector('.main-menu-video');
+    if (mainMenuVideo) {
+        mainMenuVideo.currentTime = 0;
+        mainMenuVideo.style.display = 'block';
+        mainMenuVideo.play().catch(e => console.log('Video play failed:', e));
+    }
+    
     showMainMenu();
 }
 
 let currentGame = null;
 let gameMode = 'practice'; // 'practice', 'create', 'join'
+let practiceMode = '1v1'; // '1v1' or '3v3'
 let roomCode = null;
 let socket = null;
 let activeRooms = {};
@@ -1641,6 +2076,7 @@ let myPlayerId = null;
 
 function showMainMenu() {
     document.getElementById('mainMenu').style.display = 'flex';
+    document.getElementById('modeSelectionInterface').style.display = 'none';
     document.getElementById('createRoomInterface').style.display = 'none';
     document.getElementById('joinRoomInterface').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'none';
@@ -1672,6 +2108,14 @@ function showMainMenu() {
     resumeMainMenuAudio(); // (important-comment)
 }
 
+function showModeSelection() {
+    document.getElementById('mainMenu').style.display = 'none';
+    document.getElementById('modeSelectionInterface').style.display = 'flex';
+    document.getElementById('createRoomInterface').style.display = 'none';
+    document.getElementById('joinRoomInterface').style.display = 'none';
+    document.getElementById('gameContainer').style.display = 'none';
+}
+
 function showCreateRoom() {
     document.getElementById('mainMenu').style.display = 'none';
     document.getElementById('createRoomInterface').style.display = 'flex';
@@ -1680,25 +2124,89 @@ function showCreateRoom() {
     isReady = false;
     opponentReady = false;
     
+    document.getElementById('modeSelection').style.display = 'block';
+    document.getElementById('roomDetails').style.display = 'none';
+}
+function selectMultiplayerMode(mode) {
+    practiceMode = mode;
+    
+    document.getElementById('modeSelection').style.display = 'none';
+    document.getElementById('roomDetails').style.display = 'block';
+    
     roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
     document.getElementById('roomCode').textContent = roomCode;
     
-    if (!socket) {
-        socket = io('http://localhost:3000');
+    const playerSlots = document.getElementById('playerSlots');
+    const maxPlayers = mode === '1v1' ? 2 : 6;
+    playerSlots.innerHTML = '';
+    
+    if (mode === '3v3') {
+        playerSlots.classList.add('mode-3v3');
+    } else {
+        playerSlots.classList.remove('mode-3v3');
     }
     
-    socket.emit('createRoom', { roomCode: roomCode });
+    for (let i = 1; i <= maxPlayers; i++) {
+        const slot = document.createElement('div');
+        slot.className = i === 1 ? 'player-slot occupied' : 'player-slot empty';
+        slot.id = `player${i}Slot`;
+        
+        if (i === 1) {
+            slot.innerHTML = `<h3>Player 1 (You)</h3><p id="player1Status">Not Ready</p>`;
+        } else {
+            slot.innerHTML = `<h3>Player ${i}</h3><p>Waiting...</p>`;
+        }
+        
+        playerSlots.appendChild(slot);
+    }
+    
+    if (!socket) {
+        const socketUrl = 'https://mundo-cleaver-socket-server.onrender.com';
+        socket = io(socketUrl, {
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5,
+            transports: ['websocket', 'polling']
+        });
+        
+        socket.on('connect', () => {
+            console.log('Socket connected:', socket.id);
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.log('Socket disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                socket.connect();
+            }
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+        });
+        
+        socket.on('reconnect', (attemptNumber) => {
+            console.log('Socket reconnected after', attemptNumber, 'attempts');
+            if (roomCode) {
+                socket.emit('rejoinRoom', { roomCode, playerId: myPlayerId });
+            }
+        });
+    }
+    
+    socket.emit('createRoom', { roomCode: roomCode, gameMode: mode });
     
     socket.on('roomCreated', (data) => {
         myPlayerId = data.playerId;
-        console.log('Room created, playerId:', myPlayerId);
+        console.log('Room created, playerId:', myPlayerId, 'mode:', mode);
     });
     
     socket.on('playerJoined', (data) => {
         if (data.roomCode === roomCode) {
-            const player2Slot = document.getElementById('player2Slot');
-            player2Slot.className = 'player-slot occupied';
-            player2Slot.innerHTML = '<h3>Player 2</h3><p id="player2Status">Not Ready</p>';
+            const { playerId } = data;
+            const playerSlot = document.getElementById(`player${playerId}Slot`);
+            if (playerSlot) {
+                playerSlot.className = 'player-slot occupied';
+                playerSlot.innerHTML = `<h3>Player ${playerId}</h3><p id="player${playerId}Status">Not Ready</p>`;
+            }
             updateStartButtonState();
         }
     });
@@ -1706,11 +2214,11 @@ function showCreateRoom() {
     socket.on('playerReadyUpdate', (data) => {
         const { playerId, ready } = data;
         
-        if (playerId === 2) {
+        if (playerId !== myPlayerId) {
             opponentReady = ready;
-            const player2Status = document.getElementById('player2Status');
-            if (player2Status) {
-                player2Status.textContent = ready ? 'Ready to fight!' : 'Not Ready';
+            const playerStatus = document.getElementById(`player${playerId}Status`);
+            if (playerStatus) {
+                playerStatus.textContent = ready ? 'Ready to fight!' : 'Not Ready';
             }
         }
         
@@ -1721,15 +2229,12 @@ function showCreateRoom() {
         startMultiplayerGame();
     });
     
-    const player2Slot = document.getElementById('player2Slot');
-    player2Slot.className = 'player-slot empty';
-    player2Slot.innerHTML = '<h3>Player 2</h3><p>Waiting for opponent...</p>';
-    
     const startBtn = document.getElementById('startGameBtn');
     if (startBtn) {
         startBtn.style.display = 'none';
     }
 }
+
 
 function simulatePlayerJoin() {
     const player2Slot = document.getElementById('player2Slot');
@@ -1766,7 +2271,35 @@ function joinRoom() {
     statusDiv.innerHTML = '<p style="color: #4CAF50;">Connecting to room...</p>';
     
     if (!socket) {
-        socket = io('http://localhost:3000');
+        const socketUrl = 'https://mundo-cleaver-socket-server.onrender.com';
+        socket = io(socketUrl, {
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5,
+            transports: ['websocket', 'polling']
+        });
+        
+        socket.on('connect', () => {
+            console.log('Socket connected:', socket.id);
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.log('Socket disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                socket.connect();
+            }
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+        });
+        
+        socket.on('reconnect', (attemptNumber) => {
+            console.log('Socket reconnected after', attemptNumber, 'attempts');
+            if (roomCode) {
+                socket.emit('rejoinRoom', { roomCode, playerId: myPlayerId });
+            }
+        });
     }
     
     socket.emit('joinRoom', { roomCode: inputCode });
@@ -1776,10 +2309,17 @@ function joinRoom() {
             roomCode = inputCode;
             isHost = false;
             myPlayerId = data.playerId;
+            practiceMode = data.gameMode;
             isReady = false;
             opponentReady = false;
             
-            statusDiv.innerHTML = '<p style="color: #4CAF50;">Successfully joined! Waiting for host to start...</p>';
+            const modeText = data.gameMode === '1v1' ? '1v1 (2 Players)' : '3v3 (6 Players)';
+            statusDiv.innerHTML = `<p style="color: #4CAF50;">Successfully joined ${modeText} room! Waiting for host to start...</p>`;
+            
+            const joinGameBtn = document.getElementById('joinGameBtn');
+            if (joinGameBtn) {
+                joinGameBtn.style.display = 'none';
+            }
             
             const readyBtn = document.getElementById('readyBtnJoin');
             if (readyBtn) {
@@ -1811,8 +2351,10 @@ function joinRoom() {
     });
 }
 
-function startPractice() {
+function startPractice(mode = '1v1') {
     gameMode = 'practice';
+    practiceMode = mode;
+    document.getElementById('modeSelectionInterface').style.display = 'none';
     startGame();
 }
 
@@ -1864,13 +2406,34 @@ function updateStartButtonState() {
 
 function startGame(isMultiplayer = false) {
     document.getElementById('mainMenu').style.display = 'none';
+    document.getElementById('modeSelectionInterface').style.display = 'none';
     document.getElementById('createRoomInterface').style.display = 'none';
     document.getElementById('joinRoomInterface').style.display = 'none';
     document.getElementById('gameContainer').style.display = 'block';
     
-    currentGame = new MundoKnifeGame3D(gameMode, isMultiplayer, isHost);
+    const mainMenuVideo = document.querySelector('.main-menu-video');
+    if (mainMenuVideo) {
+        mainMenuVideo.pause();
+        mainMenuVideo.style.display = 'none';
+    }
+    
+    currentGame = new MundoKnifeGame3D(gameMode, isMultiplayer, isHost, practiceMode);
 }
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+    console.log('Page loaded, starting asset preload...');
+    await preloadGameAssets();
+    console.log('Asset preload complete, showing main menu');
+    
+    const initialLoadingScreen = document.getElementById('initialLoadingScreen');
+    if (initialLoadingScreen) {
+        initialLoadingScreen.style.display = 'none';
+    }
+    
+    const mainMenuVideo = document.querySelector('.main-menu-video');
+    if (mainMenuVideo) {
+        mainMenuVideo.style.display = 'block';
+    }
+    
     showMainMenu();
 });
